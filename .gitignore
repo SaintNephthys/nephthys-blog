@@ -1,0 +1,48 @@
+# ==========================================
+# 1. 의존성 및 패키지 (Unity의 Packages 역할)
+# ==========================================
+# npm install로 설치되는 외부 라이브러리 폴더입니다. 
+# 용량이 수백 MB에 달하므로 절대 Git에 올리면 안 됩니다.
+node_modules/
+/.pnp
+.pnp.js
+
+# ==========================================
+# 2. 빌드 결과물 (Unity의 Build 폴더 역할)
+# ==========================================
+# npm run build를 실행했을 때 생성되는 최종 배포용 폴더입니다.
+# 소스 코드가 아니며, GitHub Pages 배포 시 gh-pages 모듈이 알아서 처리하므로 
+# 메인 브랜치(main/master)의 Git 추적에서는 제외합니다.
+dist/
+build/
+
+# ==========================================
+# 3. 환경 변수 및 비밀키 (Security)
+# ==========================================
+# API 키나 보안 코드가 들어가는 파일입니다. GitHub에 공개되면 안 됩니다.
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# ==========================================
+# 4. 로그 및 시스템 임시 파일 (Unity의 Temp/Logs 역할)
+# ==========================================
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# OS 임시 파일
+.DS_Store
+Thumbs.db
+
+# 에디터 설정 (VS Code 등)
+.vscode/
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
