@@ -18,6 +18,8 @@ const NAV_ITEMS: NavItem[] = [
 function AppFrame() {
   const [navOpen, setNavOpen] = useState(false)
   const location = useLocation()
+  // 에디터는 폼/프리뷰 2열 구성이므로 본문 폭 제한 없이 화면 전체를 쓴다
+  const wide = location.pathname.startsWith('/editor')
 
   return (
     <div className="app">
@@ -29,7 +31,10 @@ function AppFrame() {
           open={navOpen}
           onNavigate={() => setNavOpen(false)}
         />
-        <main className="app-content" key={location.pathname}>
+        <main
+          className={`app-content${wide ? ' app-content--wide' : ''}`}
+          key={location.pathname}
+        >
           <Outlet />
         </main>
       </div>
