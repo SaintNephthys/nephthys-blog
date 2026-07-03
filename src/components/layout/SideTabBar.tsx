@@ -1,4 +1,5 @@
 import { NavLink } from 'react-router-dom'
+import FontSizeControl from '../widgets/FontSizeControl'
 
 export interface NavItem {
   label: string
@@ -14,6 +15,7 @@ interface SideTabBarProps {
 function SideTabBar({ items, open, onNavigate }: SideTabBarProps) {
   return (
     <nav className={`side-bar${open ? ' open' : ''}`}>
+      <FontSizeControl />
       <div className="side-bar__header">MENU</div>
       <div className="side-bar__nav">
         {items.map((item) => (

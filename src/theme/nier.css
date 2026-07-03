@@ -34,11 +34,16 @@ body {
   padding: 0;
 }
 
+/* 모든 font-size는 rem 기준 — FontSizeControl이 이 값을 조절한다 */
+html {
+  font-size: 16px;
+}
+
 body {
   background: var(--nier-bg);
   color: var(--nier-text);
   font-family: var(--font-sans);
-  font-size: 15px;
+  font-size: 1rem;
   line-height: 1.7;
   -webkit-font-smoothing: antialiased;
 }
@@ -164,7 +169,7 @@ a {
   text-decoration: none;
   letter-spacing: 0.35em;
   font-weight: 700;
-  font-size: 15px;
+  font-size: 1rem;
 }
 
 .top-bar__logo-mark {
@@ -190,7 +195,7 @@ a {
 
 .top-bar__clock {
   font-family: var(--font-mono);
-  font-size: 12px;
+  font-size: 0.8125rem;
   text-align: right;
   line-height: 1.4;
   white-space: nowrap;
@@ -198,7 +203,7 @@ a {
 
 .top-bar__clock strong {
   display: block;
-  font-size: 16px;
+  font-size: 1.0625rem;
   letter-spacing: 0.15em;
 }
 
@@ -218,12 +223,41 @@ a {
   overflow-y: auto;
 }
 
+/* 글씨 크기 조절 (side-bar 상단) */
+.font-control {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 16px;
+}
+
+.font-control button {
+  flex: 1;
+  font-family: var(--font-mono);
+  font-size: 0.8125rem;
+  padding: 4px 0;
+  background: var(--nier-panel);
+  border: 1px solid var(--nier-dark);
+  color: var(--nier-text);
+  box-shadow: 2px 2px 0 rgba(69, 65, 56, 0.25);
+  cursor: pointer;
+}
+
+.font-control button:hover:not(:disabled) {
+  background: var(--nier-dark);
+  color: var(--nier-text-inv);
+}
+
+.font-control button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
 .side-bar__header {
   display: flex;
   align-items: center;
   gap: 8px;
   font-family: var(--font-mono);
-  font-size: 11px;
+  font-size: 0.75rem;
   letter-spacing: 0.3em;
   color: var(--nier-text-dim);
   margin-bottom: 12px;
@@ -252,7 +286,7 @@ a {
   border-left: 4px solid var(--nier-dark);
   color: var(--nier-text);
   text-decoration: none;
-  font-size: 13px;
+  font-size: 0.875rem;
   font-weight: 500;
   letter-spacing: 0.2em;
   box-shadow: 2px 2px 0 rgba(69, 65, 56, 0.25);
@@ -283,7 +317,7 @@ a {
 .side-bar__item .count {
   margin-left: auto;
   font-family: var(--font-mono);
-  font-size: 11px;
+  font-size: 0.75rem;
   opacity: 0.7;
 }
 
@@ -306,7 +340,7 @@ a {
   padding: 6px 12px;
   background: var(--nier-dark);
   color: var(--nier-text-inv);
-  font-size: 12px;
+  font-size: 0.8125rem;
   font-weight: 500;
   letter-spacing: 0.25em;
   font-family: var(--font-mono);
@@ -328,7 +362,7 @@ a {
    ============================================================ */
 
 .page-title {
-  font-size: 22px;
+  font-size: 1.4375rem;
   font-weight: 700;
   letter-spacing: 0.25em;
   margin: 0 0 4px;
@@ -346,7 +380,7 @@ a {
 
 .page-subtitle {
   font-family: var(--font-mono);
-  font-size: 12px;
+  font-size: 0.8125rem;
   color: var(--nier-text-dim);
   letter-spacing: 0.15em;
   margin: 0 0 28px;
@@ -377,7 +411,7 @@ a {
 .tag-chip {
   display: inline-block;
   font-family: var(--font-mono);
-  font-size: 11px;
+  font-size: 0.75rem;
   letter-spacing: 0.1em;
   padding: 1px 8px;
   border: 1px solid var(--nier-dark);
@@ -395,7 +429,7 @@ a {
 /* Buttons */
 .btn {
   font-family: var(--font-mono);
-  font-size: 12px;
+  font-size: 0.8125rem;
   letter-spacing: 0.2em;
   padding: 7px 16px;
   background: var(--nier-panel);
@@ -465,7 +499,7 @@ a {
   align-items: center;
   gap: 12px;
   font-family: var(--font-mono);
-  font-size: 11px;
+  font-size: 0.75rem;
   color: var(--nier-text-dim);
   letter-spacing: 0.1em;
   margin-bottom: 4px;
@@ -473,7 +507,7 @@ a {
 
 .post-card__title {
   margin: 0 0 6px;
-  font-size: 17px;
+  font-size: 1.125rem;
   font-weight: 700;
   letter-spacing: 0.05em;
   display: flex;
@@ -500,7 +534,7 @@ a {
 
 .post-card__summary {
   margin: 0 0 8px;
-  font-size: 13.5px;
+  font-size: 0.90625rem;
   color: var(--nier-text-dim);
 }
 
@@ -521,7 +555,7 @@ a {
 }
 
 .post-view__title {
-  font-size: 26px;
+  font-size: 1.6875rem;
   font-weight: 700;
   margin: 0 0 8px;
   letter-spacing: 0.05em;
@@ -533,7 +567,7 @@ a {
   align-items: center;
   gap: 10px;
   font-family: var(--font-mono);
-  font-size: 12px;
+  font-size: 0.8125rem;
   color: var(--nier-text-dim);
 }
 
@@ -550,7 +584,7 @@ a {
    ============================================================ */
 
 .markdown {
-  font-size: 15.5px;
+  font-size: 1.03125rem;
 }
 
 .markdown h1,
@@ -563,13 +597,13 @@ a {
 }
 
 .markdown h1 {
-  font-size: 24px;
+  font-size: 1.5625rem;
   border-bottom: 2px solid var(--nier-dark);
   padding-bottom: 6px;
 }
 
 .markdown h2 {
-  font-size: 20px;
+  font-size: 1.3125rem;
   border-bottom: 1px solid var(--nier-line);
   padding-bottom: 4px;
   display: flex;
@@ -587,7 +621,7 @@ a {
 }
 
 .markdown h3 {
-  font-size: 17px;
+  font-size: 1.125rem;
 }
 
 .markdown p {
@@ -649,7 +683,7 @@ a {
   border-collapse: collapse;
   margin: 1.2em 0;
   width: 100%;
-  font-size: 14px;
+  font-size: 0.9375rem;
   background: var(--nier-panel);
   box-shadow: 3px 3px 0 rgba(69, 65, 56, 0.25);
 }
@@ -684,7 +718,60 @@ a {
   padding: 1px 5px;
 }
 
-/* Code blocks — dark sepia terminal */
+/* Code blocks — dark sepia terminal.
+   .codeblock 래퍼가 hover 시 언어 라벨(좌상단)과 COPY 버튼(우상단)을 띄운다 */
+.markdown .codeblock {
+  position: relative;
+  margin: 1.2em 0;
+}
+
+.markdown .codeblock pre {
+  margin: 0;
+}
+
+.codeblock__lang,
+.codeblock__copy {
+  position: absolute;
+  top: 0;
+  z-index: 2;
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+  letter-spacing: 0.1em;
+  padding: 2px 8px;
+  opacity: 0;
+  transition: opacity 0.12s;
+  pointer-events: none;
+}
+
+.codeblock__lang {
+  left: 0;
+  background: var(--nier-dark);
+  color: var(--nier-text-inv);
+  border-right: 1px solid var(--nier-line);
+  border-bottom: 1px solid var(--nier-line);
+}
+
+.codeblock__copy {
+  right: 0;
+  background: var(--nier-text-inv);
+  color: var(--nier-dark);
+  border: none;
+  border-left: 1px solid var(--nier-dark);
+  border-bottom: 1px solid var(--nier-dark);
+  cursor: pointer;
+}
+
+.codeblock:hover .codeblock__lang,
+.codeblock:hover .codeblock__copy {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.codeblock__copy:hover {
+  background: var(--nier-alert);
+  color: var(--nier-text-inv);
+}
+
 .markdown pre {
   background: #3b3931;
   color: #dcd8c0;
@@ -700,7 +787,7 @@ a {
   background: none;
   border: none;
   padding: 0;
-  font-size: 13px;
+  font-size: 0.875rem;
 }
 
 /* highlight.js — custom sepia scheme */
@@ -793,7 +880,7 @@ a {
 
 .editor__group-title {
   font-family: var(--font-mono);
-  font-size: 11px;
+  font-size: 0.75rem;
   letter-spacing: 0.25em;
   color: var(--nier-text-dim);
   margin: 14px 0 6px;
@@ -811,7 +898,7 @@ a {
   border: 1px solid var(--nier-line);
   border-left: 3px solid var(--nier-dark);
   font-family: var(--font-sans);
-  font-size: 13px;
+  font-size: 0.875rem;
   color: var(--nier-text);
   cursor: pointer;
 }
@@ -830,7 +917,7 @@ a {
 
 .badge {
   font-family: var(--font-mono);
-  font-size: 10px;
+  font-size: 0.6875rem;
   letter-spacing: 0.1em;
   padding: 0 6px;
   flex-shrink: 0;
@@ -861,7 +948,7 @@ a {
 
 .editor__form label {
   font-family: var(--font-mono);
-  font-size: 11px;
+  font-size: 0.75rem;
   letter-spacing: 0.2em;
   color: var(--nier-text-dim);
   display: block;
@@ -876,7 +963,7 @@ a {
 .editor__form input[type='date'] {
   width: 100%;
   font-family: var(--font-sans);
-  font-size: 14px;
+  font-size: 0.9375rem;
   padding: 6px 10px;
   background: var(--nier-panel);
   border: 1px solid var(--nier-dark);
@@ -889,12 +976,53 @@ a {
   outline-offset: -1px;
 }
 
+/* Markdown 스타일 도구바 (textarea 바로 위) */
+.mdbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-bottom: 6px;
+}
+
+.mdbar button {
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  min-width: 34px;
+  padding: 3px 8px;
+  background: var(--nier-panel);
+  border: 1px solid var(--nier-dark);
+  color: var(--nier-text);
+  cursor: pointer;
+}
+
+.mdbar button:hover {
+  background: var(--nier-dark);
+  color: var(--nier-text-inv);
+}
+
+.mdbar button.mdbar__clear {
+  border-color: var(--nier-alert);
+  color: var(--nier-alert);
+}
+
+.mdbar button.mdbar__clear:hover {
+  background: var(--nier-alert);
+  color: var(--nier-text-inv);
+}
+
+.mdbar__sep {
+  width: 1px;
+  align-self: stretch;
+  background: var(--nier-line);
+  margin: 0 4px;
+}
+
 .editor__textarea {
   width: 100%;
   min-height: 480px;
   resize: vertical;
   font-family: var(--font-mono);
-  font-size: 13px;
+  font-size: 0.875rem;
   line-height: 1.7;
   padding: 12px 14px;
   background: var(--nier-panel);
@@ -912,7 +1040,7 @@ a {
 
 .editor__status {
   font-family: var(--font-mono);
-  font-size: 11px;
+  font-size: 0.75rem;
   letter-spacing: 0.1em;
   color: var(--nier-text-dim);
   margin-left: auto;
@@ -965,14 +1093,14 @@ a {
 .dialog__section h4 {
   margin: 0 0 4px;
   font-family: var(--font-mono);
-  font-size: 12px;
+  font-size: 0.8125rem;
   letter-spacing: 0.2em;
 }
 
 .dialog__section ul {
   margin: 0;
   padding-left: 1.4em;
-  font-size: 13px;
+  font-size: 0.875rem;
 }
 
 .dialog__section .publish { color: #4c6b3c; }
@@ -987,7 +1115,7 @@ a {
 
 .dialog input[type='text'] {
   width: 100%;
-  font-size: 13px;
+  font-size: 0.875rem;
   padding: 6px 10px;
   background: var(--nier-bg);
   border: 1px solid var(--nier-dark);

@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
+import MarkdownToolbar from '../components/editor/MarkdownToolbar'
 import MarkdownRenderer from '../components/post/MarkdownRenderer'
 import Panel from '../components/widgets/Panel'
 import {
@@ -54,6 +55,7 @@ function EditorWorkspace() {
     preview: DeployPreview
     message: string
   } | null>(null)
+  const textareaRef = useRef<HTMLTextAreaElement>(null)
 
   const refreshList = useCallback(async () => {
     const { posts: list } = await listPosts()
@@ -282,7 +284,12 @@ function EditorWorkspace() {
               </div>
             </div>
 
+            <MarkdownToolbar
+              textareaRef={textareaRef}
+              onChange={(content) => updateForm({ content })}
+            />
             <textarea
+              ref={textareaRef}
               className="editor__textarea"
               value={form.content}
               onChange={(e) => updateForm({ content: e.target.value })}
