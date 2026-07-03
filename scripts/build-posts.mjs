@@ -40,6 +40,33 @@ export function parsePostFile(file) {
   }
 }
 
+/**
+ * 검색용 텍스트 추출: 모든 헤더(#~######)와 `- ` 구분점의 텍스트.
+ * 코드 블럭 내부는 제외하고, 인라인 Markdown 문법은 벗겨낸다.
+ */
+function extractSearchText(content) {
+  const lines = []
+  let inFence = false
+  for (const line of content.split('\n')) {
+    if (/^\s*(```|~~~)/.test(line)) {
+      inFence = !inFence
+      continue
+    }
+    if (inFence) continue
+    const heading = /^#{1,6}\s+(.+?)\s*$/.exec(line)
+    const bullet = /^\s*-\s+(.+?)\s*$/.exec(line)
+    const text = heading?.[1] ?? bullet?.[1]
+    if (text) {
+      lines.push(
+        text
+          .replace(/\[([^\]]*)\]\([^)]*\)/g, '$1') // 링크 → 표시 텍스트
+          .replace(/[*_`~]|<\/?u>/g, ''), // 인라인 서식 제거
+      )
+    }
+  }
+  return lines.join('\n')
+}
+
 export function listPostFiles() {
   if (!fs.existsSync(CONTENT_DIR)) return []
   return fs.readdirSync(CONTENT_DIR).filter((f) => f.endsWith('.md'))
@@ -66,6 +93,7 @@ export function buildPosts() {
       category: post.category,
       tags: post.tags,
       summary: post.summary,
+      searchText: extractSearchText(post.content),
     })
   }
 

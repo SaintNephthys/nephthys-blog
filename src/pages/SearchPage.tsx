@@ -6,12 +6,10 @@ function SearchPage() {
   const { query = '' } = useParams<{ query: string }>()
   const { posts, loading, error } = usePostIndex()
 
+  // 검색 범위: 태그, 제목, 모든 헤더, `- ` 구분점 텍스트
   const q = query.toLowerCase()
   const results = posts.filter((p) =>
-    [p.title, p.summary, p.category, ...p.tags]
-      .join(' ')
-      .toLowerCase()
-      .includes(q),
+    [p.title, ...p.tags, p.searchText].join('\n').toLowerCase().includes(q),
   )
 
   return (

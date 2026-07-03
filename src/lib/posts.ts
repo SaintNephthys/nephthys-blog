@@ -5,6 +5,8 @@ export interface PostMeta {
   category: string
   tags: string[]
   summary: string
+  /** 검색용: 본문의 모든 헤더와 `- ` 구분점 텍스트 (빌드 시 추출) */
+  searchText: string
 }
 
 const BASE = import.meta.env.BASE_URL
