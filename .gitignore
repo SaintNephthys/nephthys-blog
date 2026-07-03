@@ -33,6 +33,7 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
+reference-files/
 
 # OS 임시 파일
 .DS_Store
