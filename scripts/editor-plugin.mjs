@@ -86,6 +86,8 @@ function savePost(slug, body) {
     tags: Array.isArray(body.tags) ? body.tags.map(String).filter(Boolean) : [],
     summary: String(body.summary ?? ''),
   }
+  const category = String(body.category ?? '').trim()
+  if (category) data.category = category
   if (body.draft === true) data.draft = true
   const md = matter.stringify(String(body.content ?? ''), data)
   fs.mkdirSync(CONTENT_DIR, { recursive: true })

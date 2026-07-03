@@ -10,6 +10,7 @@ import remarkMath from 'remark-math'
 import rehypeRaw from 'rehype-raw'
 import rehypeKatex from 'rehype-katex'
 import rehypeHighlight from 'rehype-highlight'
+import rehypeSlug from 'rehype-slug'
 import 'katex/dist/katex.min.css'
 
 type PreProps = ComponentPropsWithoutRef<'pre'> & ExtraProps
@@ -60,7 +61,7 @@ function MarkdownRenderer({ content }: MarkdownRendererProps) {
     <div className="markdown">
       <ReactMarkdown
         remarkPlugins={[remarkGfm, remarkMath]}
-        rehypePlugins={[rehypeRaw, rehypeKatex, rehypeHighlight]}
+        rehypePlugins={[rehypeRaw, rehypeKatex, rehypeHighlight, rehypeSlug]}
         components={{ pre: CodeBlock }}
       >
         {content}

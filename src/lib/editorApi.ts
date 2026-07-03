@@ -8,6 +8,7 @@ export interface EditorPostMeta {
   slug: string
   title: string
   date: string
+  category: string
   tags: string[]
   summary: string
   draft: boolean

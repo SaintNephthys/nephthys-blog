@@ -1,30 +1,20 @@
-import { useEffect, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { useState } from 'react'
+import { Link, useNavigate } from 'react-router-dom'
 
 interface TopBarProps {
   onToggleNav: () => void
 }
 
 function TopBar({ onToggleNav }: TopBarProps) {
-  const [now, setNow] = useState(() => new Date())
+  const [query, setQuery] = useState('')
+  const navigate = useNavigate()
 
-  useEffect(() => {
-    const timer = setInterval(() => setNow(new Date()), 1000)
-    return () => clearInterval(timer)
-  }, [])
-
-  const time = now.toLocaleTimeString('ko-KR', {
-    hour: '2-digit',
-    minute: '2-digit',
-    second: '2-digit',
-    hour12: false,
-  })
-  const date = now.toLocaleDateString('ko-KR', {
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric',
-    weekday: 'long',
-  })
+  const submitSearch = (e: React.FormEvent) => {
+    e.preventDefault()
+    const q = query.trim()
+    if (!q) return
+    navigate(`/search/${encodeURIComponent(q)}`)
+  }
 
   return (
     <header className="top-bar">
@@ -41,10 +31,15 @@ function TopBar({ onToggleNav }: TopBarProps) {
         NEPHTHYS BLOG
       </Link>
       <div className="top-bar__spacer" />
-      <div className="top-bar__clock">
-        <strong>{time}</strong>
-        {date}
-      </div>
+      <form className="top-bar__search" onSubmit={submitSearch} role="search">
+        <input
+          type="search"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder="SEARCH…"
+          aria-label="게시물 검색"
+        />
+      </form>
     </header>
   )
 }

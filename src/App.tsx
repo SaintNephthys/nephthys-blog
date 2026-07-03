@@ -4,6 +4,8 @@ import AppFrame from './components/layout/AppFrame'
 import HomePage from './pages/HomePage'
 import TagsPage from './pages/TagsPage'
 import TagPage from './pages/TagPage'
+import CategoryPage from './pages/CategoryPage'
+import SearchPage from './pages/SearchPage'
 
 // 무거운 의존성(KaTeX, highlight.js, 에디터)은 게시물/에디터 진입 시에만 로드
 const PostPage = lazy(() => import('./pages/PostPage'))
@@ -25,6 +27,8 @@ function App() {
           />
           <Route path="tags" element={<TagsPage />} />
           <Route path="tag/:tag" element={<TagPage />} />
+          <Route path="category/:category" element={<CategoryPage />} />
+          <Route path="search/:query" element={<SearchPage />} />
           <Route
             path="editor"
             element={

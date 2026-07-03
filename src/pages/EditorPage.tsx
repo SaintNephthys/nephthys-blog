@@ -104,6 +104,7 @@ function EditorWorkspace() {
       slug: `${today()}-untitled`,
       title: '',
       date: today(),
+      category: '',
       tags: [],
       summary: '',
       draft: true,
@@ -201,6 +202,20 @@ function EditorWorkspace() {
   const published = posts.filter((p) => !p.draft)
   const drafts = posts.filter((p) => p.draft)
 
+  // 드롭다운에 노출할 카테고리 목록 (draft 포함 전체 게시물 + 현재 입력값)
+  const categorySet = new Set(posts.map((p) => p.category).filter(Boolean))
+  if (form?.category) categorySet.add(form.category)
+  const categories = [...categorySet].sort((a, b) => a.localeCompare(b, 'ko'))
+
+  const changeCategory = (value: string) => {
+    if (value === '__new__') {
+      const name = window.prompt('새 카테고리 이름을 입력하세요')?.trim()
+      if (name) updateForm({ category: name })
+    } else {
+      updateForm({ category: value })
+    }
+  }
+
   return (
     <>
       <h1 className="page-title">EDITOR</h1>
@@ -256,6 +271,22 @@ function EditorWorkspace() {
                   readOnly={!isNew}
                   onChange={(e) => updateForm({ slug: e.target.value })}
                 />
+              </div>
+              <div className="field" style={{ maxWidth: 220 }}>
+                <label htmlFor="ed-category">CATEGORY</label>
+                <select
+                  id="ed-category"
+                  value={form.category}
+                  onChange={(e) => changeCategory(e.target.value)}
+                >
+                  <option value="">(없음)</option>
+                  {categories.map((c) => (
+                    <option key={c} value={c}>
+                      {c}
+                    </option>
+                  ))}
+                  <option value="__new__">+ 새 카테고리…</option>
+                </select>
               </div>
             </div>
             <div className="form-row">

@@ -193,18 +193,33 @@ a {
   flex: 1;
 }
 
-.top-bar__clock {
+.top-bar__search input {
+  width: 230px;
+  max-width: 40vw;
   font-family: var(--font-mono);
   font-size: 0.8125rem;
-  text-align: right;
-  line-height: 1.4;
-  white-space: nowrap;
+  letter-spacing: 0.1em;
+  padding: 6px 12px;
+  background: rgba(220, 216, 192, 0.12);
+  border: 1px solid var(--nier-text-inv);
+  color: var(--nier-text-inv);
+  border-radius: 0;
+  -webkit-appearance: none;
+  appearance: none;
 }
 
-.top-bar__clock strong {
-  display: block;
-  font-size: 1.0625rem;
-  letter-spacing: 0.15em;
+.top-bar__search input::placeholder {
+  color: rgba(220, 216, 192, 0.55);
+}
+
+.top-bar__search input:focus {
+  outline: none;
+  background: var(--nier-text-inv);
+  color: var(--nier-dark);
+}
+
+.top-bar__search input:focus::placeholder {
+  color: rgba(76, 74, 67, 0.5);
 }
 
 /* ============================================================
@@ -321,6 +336,56 @@ a {
   opacity: 0.7;
 }
 
+.side-bar__item--button {
+  width: 100%;
+  font-family: var(--font-sans);
+  cursor: pointer;
+  text-align: left;
+}
+
+/* CATEGORIES 펼침 목록 */
+.side-bar__subnav {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 0 0 4px 16px;
+}
+
+.side-bar__subitem {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 10px;
+  background: var(--nier-panel-dim);
+  border-left: 3px solid var(--nier-accent);
+  color: var(--nier-text);
+  text-decoration: none;
+  font-size: 0.8125rem;
+  letter-spacing: 0.1em;
+  transition: background 0.1s, color 0.1s;
+}
+
+.side-bar__subitem .count {
+  margin-left: auto;
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+  opacity: 0.7;
+}
+
+.side-bar__subitem:hover,
+.side-bar__subitem.active {
+  background: var(--nier-dark);
+  color: var(--nier-text-inv);
+  border-left-color: var(--nier-dark);
+}
+
+.side-bar__empty {
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  color: var(--nier-text-dim);
+  padding: 2px 10px;
+}
+
 /* ============================================================
    Panel (dark title bar + light body)
    ============================================================ */
@@ -424,6 +489,15 @@ a {
 .tag-chip:hover {
   background: var(--nier-dark);
   color: var(--nier-text-inv);
+}
+
+.tag-chip--category {
+  background: var(--nier-dark);
+  color: var(--nier-text-inv);
+}
+
+.tag-chip--category:hover {
+  background: var(--nier-dark-soft);
 }
 
 /* Buttons */
@@ -548,6 +622,81 @@ a {
    Post viewer
    ============================================================ */
 
+.post-layout {
+  display: flex;
+  gap: 28px;
+  align-items: flex-start;
+}
+
+.post-layout__main {
+  flex: 1;
+  min-width: 0;
+}
+
+/* 게시물 우측 목차 (H1 기준) */
+.toc {
+  position: sticky;
+  top: calc(var(--topbar-h) + 32px);
+  width: 200px;
+  flex-shrink: 0;
+  max-height: calc(100vh - var(--topbar-h) - 64px);
+  overflow-y: auto;
+  border-left: 2px solid var(--nier-dark);
+  padding-left: 14px;
+}
+
+.toc__title {
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  letter-spacing: 0.3em;
+  color: var(--nier-text-dim);
+  margin-bottom: 8px;
+}
+
+.toc ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.toc a {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  font-size: 0.8125rem;
+  line-height: 1.5;
+  color: var(--nier-text);
+  text-decoration: none;
+}
+
+.toc a::before {
+  content: '';
+  width: 6px;
+  height: 6px;
+  background: var(--nier-dark);
+  transform: rotate(45deg);
+  flex-shrink: 0;
+  align-self: center;
+}
+
+.toc a:hover {
+  background: var(--nier-dark);
+  color: var(--nier-text-inv);
+}
+
+.toc a:hover::before {
+  background: var(--nier-text-inv);
+}
+
+@media (max-width: 1200px) {
+  .toc {
+    display: none;
+  }
+}
+
 .post-view__header {
   border-bottom: 2px solid var(--nier-dark);
   margin-bottom: 24px;
@@ -594,6 +743,8 @@ a {
   letter-spacing: 0.06em;
   line-height: 1.4;
   margin: 2em 0 0.7em;
+  /* 목차 클릭으로 스크롤 시 상단바에 가리지 않도록 */
+  scroll-margin-top: calc(var(--topbar-h) + 16px);
 }
 
 .markdown h1 {
@@ -645,7 +796,7 @@ a {
   padding: 10px 18px;
   border-left: 4px solid var(--nier-dark);
   background: var(--nier-panel);
-  color: var(--nier-text-dim);
+  color: var(--nier-text);
 }
 
 .markdown blockquote p {
@@ -991,7 +1142,8 @@ a {
 }
 
 .editor__form input[type='text'],
-.editor__form input[type='date'] {
+.editor__form input[type='date'],
+.editor__form select {
   width: 100%;
   font-family: var(--font-sans);
   font-size: 0.9375rem;
@@ -999,9 +1151,11 @@ a {
   background: var(--nier-panel);
   border: 1px solid var(--nier-dark);
   color: var(--nier-text);
+  border-radius: 0;
 }
 
 .editor__form input:focus,
+.editor__form select:focus,
 .editor__textarea:focus {
   outline: 2px solid var(--nier-dark);
   outline-offset: -1px;

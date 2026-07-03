@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import PostViewer from '../components/post/PostViewer'
+import TableOfContents from '../components/post/TableOfContents'
 import { fetchPostContent, fetchPostIndex, type PostMeta } from '../lib/posts'
 
 interface LoadedPost {
@@ -58,14 +59,17 @@ function PostPage() {
   }
 
   return (
-    <>
-      <PostViewer meta={post.meta} content={post.content} />
-      <footer className="post-view__footer">
-        <Link className="btn" to="/">
-          ← ARCHIVES
-        </Link>
-      </footer>
-    </>
+    <div className="post-layout">
+      <div className="post-layout__main">
+        <PostViewer meta={post.meta} content={post.content} />
+        <footer className="post-view__footer">
+          <Link className="btn" to="/">
+            ← ARCHIVES
+          </Link>
+        </footer>
+      </div>
+      <TableOfContents content={post.content} />
+    </div>
   )
 }
 

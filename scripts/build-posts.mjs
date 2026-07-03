@@ -32,6 +32,7 @@ export function parsePostFile(file) {
     slug,
     title: data.title ?? slug,
     date: normalizeDate(data.date),
+    category: typeof data.category === 'string' ? data.category : '',
     tags: Array.isArray(data.tags) ? data.tags.map(String) : [],
     summary: data.summary ?? '',
     draft: data.draft === true,
@@ -62,6 +63,7 @@ export function buildPosts() {
       slug: post.slug,
       title: post.title,
       date: post.date,
+      category: post.category,
       tags: post.tags,
       summary: post.summary,
     })

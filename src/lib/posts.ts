@@ -2,6 +2,7 @@ export interface PostMeta {
   slug: string
   title: string
   date: string
+  category: string
   tags: string[]
   summary: string
 }
@@ -23,6 +24,17 @@ export async function fetchPostContent(slug: string): Promise<string> {
   const res = await fetch(`${BASE}posts/${encodeURIComponent(slug)}.md`)
   if (!res.ok) throw new Error(`게시물을 불러오지 못했습니다 (${res.status})`)
   return res.text()
+}
+
+export function collectCategories(posts: PostMeta[]): Map<string, number> {
+  const categories = new Map<string, number>()
+  for (const post of posts) {
+    if (!post.category) continue
+    categories.set(post.category, (categories.get(post.category) ?? 0) + 1)
+  }
+  return new Map(
+    [...categories.entries()].sort((a, b) => a[0].localeCompare(b[0], 'ko')),
+  )
 }
 
 export function collectTags(posts: PostMeta[]): Map<string, number> {

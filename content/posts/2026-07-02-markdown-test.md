@@ -2,10 +2,11 @@
 title: 수식·코드 렌더링 테스트
 date: 2026-07-02
 tags: [math, code, test]
+category: Dev
 summary: KaTeX 수식, 코드 하이라이팅, 표 렌더링을 검증하는 게시물.
 ---
 
-## 수식 (KaTeX)
+# 수식 (KaTeX)
 
 인라인 수식은 $E = mc^2$ 처럼 문장 안에 쓸 수 있다.
 블록 수식은 별도 패널로 표시된다.
@@ -27,7 +28,7 @@ $$
 -\frac{\hbar^2}{2m}\frac{d^2\psi}{dx^2} + V(x)\psi = E\psi
 $$
 
-## 코드 하이라이팅
+# 코드 하이라이팅
 
 TypeScript:
 
@@ -66,7 +67,7 @@ def runge_kutta_4(f, y0, t):
 
 인라인 코드: `const answer = 42`
 
-## 표
+# 표
 
 | 상수 | 기호 | 값 |
 | --- | --- | --- |
@@ -74,7 +75,7 @@ def runge_kutta_4(f, y0, t):
 | 플랑크 상수 | $h$ | $6.626 \times 10^{-34} \ \mathrm{J \cdot s}$ |
 | 중력 상수 | $G$ | $6.674 \times 10^{-11} \ \mathrm{m^3 kg^{-1} s^{-2}}$ |
 
-## 인용과 구분선
+# 인용과 구분선
 
 > "사막에서 살아남는 건 힘들었을 거야. 인간은 왜 이렇게 밀집된 곳에 모여 살았을까?"
 
