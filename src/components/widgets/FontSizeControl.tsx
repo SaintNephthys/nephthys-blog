@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 
 const STORAGE_KEY = 'nephthys-font-size'
-const DEFAULT_SIZE = 16
+const DEFAULT_SIZE = 18
 const MIN_SIZE = 12
 const MAX_SIZE = 22
 

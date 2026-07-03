@@ -36,7 +36,7 @@ body {
 
 /* 모든 font-size는 rem 기준 — FontSizeControl이 이 값을 조절한다 */
 html {
-  font-size: 16px;
+  font-size: 18px;
 }
 
 body {
@@ -773,11 +773,13 @@ a {
 }
 
 .markdown pre {
-  background: #3b3931;
-  color: #dcd8c0;
+  /* NieR:Automata Light (shelune/vscode-nier-automata-light) editor 색상 */
+  background: #dad3ba;
+  color: #4e4b42;
   border: 1px solid var(--nier-dark);
   box-shadow: 3px 3px 0 rgba(69, 65, 56, 0.3);
-  padding: 14px 16px;
+  /* 상하 여백 — hover 시 뜨는 언어명/COPY 버튼이 코드를 가리지 않도록 */
+  padding: 32px 18px 22px;
   overflow-x: auto;
   line-height: 1.6;
   margin: 1.2em 0;
@@ -790,52 +792,81 @@ a {
   font-size: 0.875rem;
 }
 
-/* highlight.js — custom sepia scheme */
+/* highlight.js — NieR:Automata Light 테마 매핑
+   (shelune/vscode-nier-automata-light tokenColors 참조) */
 .hljs-comment,
 .hljs-quote {
-  color: #8a8674;
+  color: #a5a18e; /* comment */
   font-style: italic;
 }
 
 .hljs-keyword,
 .hljs-selector-tag,
-.hljs-built_in,
-.hljs-type {
-  color: #cfa76c;
+.hljs-doctag {
+  color: #b56151; /* keyword */
 }
 
 .hljs-string,
 .hljs-regexp,
-.hljs-addition {
-  color: #a3b58a;
+.hljs-deletion {
+  color: #727b5b; /* string */
 }
 
 .hljs-number,
 .hljs-literal,
 .hljs-symbol,
-.hljs-deletion {
-  color: #c98d6b;
+.hljs-link,
+.hljs-meta {
+  color: #585897; /* constant.numeric / constant.language */
 }
 
 .hljs-title,
-.hljs-section,
+.hljs-title.function_,
+.hljs-built_in,
+.hljs-addition {
+  color: #cc654c; /* entity.name.function / support.function */
+}
+
+.hljs-title.class_,
 .hljs-name,
-.hljs-function .hljs-title {
-  color: #e6dfc0;
+.hljs-section {
+  color: #727b5b; /* entity.name.tag / markup.heading */
   font-weight: 600;
 }
 
+.hljs-type,
 .hljs-attr,
 .hljs-attribute,
-.hljs-variable,
-.hljs-template-variable,
-.hljs-params {
-  color: #b8b298;
+.hljs-selector-pseudo,
+.hljs-selector-attr,
+.hljs-template-variable {
+  color: #3ba49a; /* storage.type / attribute-name */
+  font-style: italic;
 }
 
-.hljs-meta,
-.hljs-doctag {
-  color: #97a5a0;
+.hljs-params,
+.hljs-selector-id,
+.hljs-subst {
+  color: #623551; /* variable.parameter */
+}
+
+.hljs-variable,
+.hljs-property,
+.hljs-punctuation {
+  color: #4e4b42; /* variable / source */
+}
+
+.hljs-operator {
+  color: #888d94; /* punctuation */
+}
+
+.hljs-selector-class {
+  color: #cc654c;
+}
+
+.hljs-variable.language_ {
+  color: #b56151; /* self / this */
+  font-style: italic;
 }
 
 .hljs-emphasis {
