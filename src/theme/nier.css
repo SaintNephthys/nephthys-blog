@@ -526,6 +526,7 @@ a {
   font-family: var(--font-mono);
   font-size: 0.8125rem;
   letter-spacing: 0.2em;
+  text-decoration: none; /* <a class="btn">로 쓰일 때 밑줄 제거 */
   padding: 7px 16px;
   background: var(--nier-panel);
   color: var(--nier-text);
@@ -562,6 +563,98 @@ a {
 .btn--danger:hover:not(:disabled) {
   background: var(--nier-alert);
   color: var(--nier-text-inv);
+}
+
+/* ============================================================
+   Editor tabs (포스팅 | 카테고리 편집)
+   ============================================================ */
+
+.editor-tabs {
+  display: flex;
+  gap: 6px;
+  margin: 10px 0 12px;
+}
+
+.editor-tabs__tab {
+  font-family: var(--font-mono);
+  font-size: 0.8125rem;
+  letter-spacing: 0.15em;
+  padding: 6px 20px;
+  background: var(--nier-panel);
+  color: var(--nier-text);
+  border: 1px solid var(--nier-dark);
+  cursor: pointer;
+  transition: background 0.1s, color 0.1s;
+}
+
+.editor-tabs__tab:hover,
+.editor-tabs__tab.active {
+  background: var(--nier-dark);
+  color: var(--nier-text-inv);
+}
+
+.editor--hidden {
+  display: none;
+}
+
+/* ============================================================
+   Category manager (에디터 카테고리 편집 탭)
+   ============================================================ */
+
+.category-manager {
+  max-width: 640px;
+}
+
+.category-manager__add {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+.category-manager__add input {
+  flex: 1;
+}
+
+.category-manager__error {
+  font-family: var(--font-mono);
+  font-size: 0.8125rem;
+  color: var(--nier-alert);
+  margin: 0 0 10px;
+}
+
+.category-manager__empty {
+  color: var(--nier-text-dim);
+  margin: 0;
+}
+
+.category-manager__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.category-manager__row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 6px 10px;
+  background: var(--nier-panel-dim);
+  border-left: 3px solid var(--nier-accent);
+}
+
+.category-manager__name {
+  font-weight: 700;
+  flex: 1;
+}
+
+.category-manager__count {
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  color: var(--nier-text-dim);
+  letter-spacing: 0.1em;
 }
 
 /* ============================================================
@@ -1164,7 +1257,8 @@ a {
 
 .editor__form input[type='text'],
 .editor__form input[type='date'],
-.editor__form select {
+.editor__form select,
+.category-manager__add input {
   width: 100%;
   font-family: var(--font-sans);
   font-size: 0.9375rem;
@@ -1177,7 +1271,8 @@ a {
 
 .editor__form input:focus,
 .editor__form select:focus,
-.editor__textarea:focus {
+.editor__textarea:focus,
+.category-manager__add input:focus {
   outline: 2px solid var(--nier-dark);
   outline-offset: -1px;
 }

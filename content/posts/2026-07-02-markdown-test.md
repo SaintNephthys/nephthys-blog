@@ -1,9 +1,12 @@
 ---
 title: 수식·코드 렌더링 테스트
-date: 2026-07-02
-tags: [math, code, test]
+date: '2026-07-02'
+tags:
+  - math
+  - code
+  - test
 category: Dev
-summary: KaTeX 수식, 코드 하이라이팅, 표 렌더링을 검증하는 게시물.
+summary: 'KaTeX 수식, 코드 하이라이팅, 표 렌더링을 검증하는 게시물.'
 ---
 
 # 수식 (KaTeX)

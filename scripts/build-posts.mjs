@@ -3,6 +3,8 @@
  *
  * - frontmatter(title, date, tags, summary, draft)를 파싱해
  *   public/posts/index.json (게시물 메타데이터, 날짜 역순)을 생성한다.
+ * - content/categories.json + 게시물 파생 카테고리를 병합한 categories 배열도
+ *   index.json에 포함한다 → 게시물이 0개인 카테고리도 사이드바에 노출된다.
  * - 본문(frontmatter 제거)을 public/posts/<slug>.md 로 복사한다.
  * - draft: true 게시물은 index.json과 public/posts에서 제외된다.
  *   → 미완성 글이 push되어도 배포된 블로그에는 노출되지 않는다.
@@ -16,7 +18,17 @@ import matter from 'gray-matter'
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 export const CONTENT_DIR = path.join(ROOT, 'content', 'posts')
+export const CATEGORIES_FILE = path.join(ROOT, 'content', 'categories.json')
 const OUT_DIR = path.join(ROOT, 'public', 'posts')
+
+export function readCategoryNames() {
+  try {
+    const parsed = JSON.parse(fs.readFileSync(CATEGORIES_FILE, 'utf8'))
+    return Array.isArray(parsed) ? parsed.map(String).filter(Boolean) : []
+  } catch {
+    return []
+  }
+}
 
 function normalizeDate(value) {
   if (value instanceof Date) return value.toISOString().slice(0, 10)
@@ -98,9 +110,12 @@ export function buildPosts() {
   }
 
   posts.sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : 0))
+  const categories = [
+    ...new Set([...readCategoryNames(), ...posts.map((p) => p.category).filter(Boolean)]),
+  ].sort((a, b) => a.localeCompare(b, 'ko'))
   fs.writeFileSync(
     path.join(OUT_DIR, 'index.json'),
-    JSON.stringify({ posts }, null, 2),
+    JSON.stringify({ posts, categories }, null, 2),
   )
 
   return { published: posts.length, drafts }

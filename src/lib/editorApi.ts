@@ -53,6 +53,38 @@ export function deletePost(slug: string): Promise<{ ok: boolean }> {
   return request(`/api/posts/${encodeURIComponent(slug)}`, { method: 'DELETE' })
 }
 
+export interface CategoryInfo {
+  name: string
+  count: number
+}
+
+export function listCategories(): Promise<{ categories: CategoryInfo[] }> {
+  return request('/api/categories')
+}
+
+export function addCategory(name: string): Promise<{ categories: CategoryInfo[] }> {
+  return request('/api/categories', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ name }),
+  })
+}
+
+export function renameCategory(
+  name: string,
+  newName: string,
+): Promise<{ categories: CategoryInfo[] }> {
+  return request(`/api/categories/${encodeURIComponent(name)}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ name: newName }),
+  })
+}
+
+export function deleteCategory(name: string): Promise<{ categories: CategoryInfo[] }> {
+  return request(`/api/categories/${encodeURIComponent(name)}`, { method: 'DELETE' })
+}
+
 export function fetchDeployPreview(): Promise<DeployPreview> {
   return request('/api/deploy/preview')
 }

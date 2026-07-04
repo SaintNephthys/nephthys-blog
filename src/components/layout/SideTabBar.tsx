@@ -12,8 +12,8 @@ export interface NavItem {
 /** CATEGORIES 토글 버튼 + 펼쳐지는 카테고리 목록 (게시물 수 표시) */
 function CategoryNav({ onNavigate }: { onNavigate: () => void }) {
   const [open, setOpen] = useState(false)
-  const { posts } = usePostIndex()
-  const categories = collectCategories(posts)
+  const { posts, categories: allNames } = usePostIndex()
+  const categories = collectCategories(posts, allNames)
 
   return (
     <>

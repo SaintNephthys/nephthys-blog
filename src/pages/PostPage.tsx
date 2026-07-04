@@ -20,9 +20,9 @@ function PostPage() {
     let cancelled = false
 
     Promise.all([fetchPostIndex(), fetchPostContent(slug)])
-      .then(([posts, content]) => {
+      .then(([index, content]) => {
         if (cancelled) return
-        const meta = posts.find((p) => p.slug === slug)
+        const meta = index.posts.find((p) => p.slug === slug)
         if (!meta) {
           setFailure({ slug, message: '게시물을 찾을 수 없습니다.' })
           return

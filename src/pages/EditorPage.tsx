@@ -1,14 +1,18 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
+import CategoryManager from '../components/editor/CategoryManager'
 import MarkdownToolbar from '../components/editor/MarkdownToolbar'
 import MarkdownRenderer from '../components/post/MarkdownRenderer'
 import Panel from '../components/widgets/Panel'
+import { invalidatePostIndex } from '../lib/posts'
 import {
   deletePost,
   deploy,
   fetchDeployPreview,
   getPost,
+  listCategories,
   listPosts,
   savePost,
+  type CategoryInfo,
   type DeployPreview,
   type EditorPost,
   type EditorPostMeta,
@@ -24,8 +28,12 @@ interface StatusMessage {
 }
 
 // 로컬 dev 전용 페이지 — App.tsx가 DEV일 때만 라우트를 등록하므로 프로덕션에서는 로드되지 않는다
+type EditorTab = 'posts' | 'categories'
+
 function EditorPage() {
+  const [tab, setTab] = useState<EditorTab>('posts')
   const [posts, setPosts] = useState<EditorPostMeta[]>([])
+  const [allCategories, setAllCategories] = useState<CategoryInfo[]>([])
   const [form, setForm] = useState<EditorPost | null>(null)
   const [tagsInput, setTagsInput] = useState('')
   const [isNew, setIsNew] = useState(false)
@@ -43,11 +51,31 @@ function EditorPage() {
     setPosts(list)
   }, [])
 
+  const refreshCategories = useCallback(async () => {
+    const { categories: list } = await listCategories()
+    setAllCategories(list)
+  }, [])
+
+  // 카테고리 편집 탭에서 변경 시: 목록·게시물을 다시 읽고, 이름이 바뀌면 열려 있는 폼도 따라간다
+  const handleCategoriesChanged = useCallback(
+    async (rename?: { from: string; to: string }) => {
+      await Promise.all([refreshCategories(), refreshList()])
+      if (rename) {
+        setForm((prev) =>
+          prev && prev.category === rename.from ? { ...prev, category: rename.to } : prev,
+        )
+      }
+    },
+    [refreshCategories, refreshList],
+  )
+
   useEffect(() => {
     let cancelled = false
-    listPosts()
-      .then(({ posts: list }) => {
-        if (!cancelled) setPosts(list)
+    Promise.all([listPosts(), listCategories()])
+      .then(([{ posts: list }, { categories: cats }]) => {
+        if (cancelled) return
+        setPosts(list)
+        setAllCategories(cats)
       })
       .catch((err: Error) => {
         if (!cancelled) setStatus({ text: err.message, error: true })
@@ -116,7 +144,8 @@ function EditorPage() {
       setStatus({
         text: `SAVED ${new Date().toLocaleTimeString('ko-KR', { hour12: false })}${post.draft ? ' (DRAFT)' : ''}`,
       })
-      await refreshList()
+      await Promise.all([refreshList(), refreshCategories()])
+      invalidatePostIndex() // 사이드바 카테고리 등 공개 index 사용처 즉시 갱신
     } catch (err) {
       setStatus({ text: (err as Error).message, error: true })
     } finally {
@@ -144,7 +173,8 @@ function EditorPage() {
       setForm(null)
       setDirty(false)
       setStatus({ text: 'DELETED' })
-      await refreshList()
+      await Promise.all([refreshList(), refreshCategories()])
+      invalidatePostIndex()
     } catch (err) {
       setStatus({ text: (err as Error).message, error: true })
     } finally {
@@ -183,8 +213,8 @@ function EditorPage() {
   const published = posts.filter((p) => !p.draft)
   const drafts = posts.filter((p) => p.draft)
 
-  // 드롭다운에 노출할 카테고리 목록 (draft 포함 전체 게시물 + 현재 입력값)
-  const categorySet = new Set(posts.map((p) => p.category).filter(Boolean))
+  // 드롭다운에 노출할 카테고리 목록 (categories.json + 게시물 파생 + 현재 입력값)
+  const categorySet = new Set(allCategories.map((c) => c.name))
   if (form?.category) categorySet.add(form.category)
   const categories = [...categorySet].sort((a, b) => a.localeCompare(b, 'ko'))
 
@@ -200,9 +230,36 @@ function EditorPage() {
   return (
     <>
       <h1 className="page-title">EDITOR</h1>
-      <p className="page-subtitle">작성 → 저장 → 게시 → 배포</p>
+      <div className="editor-tabs" role="tablist">
+        <button
+          type="button"
+          role="tab"
+          aria-selected={tab === 'posts'}
+          className={`editor-tabs__tab${tab === 'posts' ? ' active' : ''}`}
+          onClick={() => setTab('posts')}
+        >
+          포스팅
+        </button>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={tab === 'categories'}
+          className={`editor-tabs__tab${tab === 'categories' ? ' active' : ''}`}
+          onClick={() => setTab('categories')}
+        >
+          카테고리 편집
+        </button>
+      </div>
+      <p className="page-subtitle">
+        {tab === 'posts' ? '작성 → 저장 → 게시 → 배포' : '카테고리 추가 · 삭제'}
+      </p>
 
-      <div className="editor">
+      {tab === 'categories' && (
+        <CategoryManager categories={allCategories} onChanged={handleCategoriesChanged} />
+      )}
+
+      {/* 탭을 오가도 작성 중인 폼이 유지되도록 언마운트 대신 숨긴다 */}
+      <div className={`editor${tab === 'posts' ? '' : ' editor--hidden'}`}>
         <aside className="editor__list">
           <button type="button" className="btn btn--primary" onClick={newPost}>
             + NEW POST

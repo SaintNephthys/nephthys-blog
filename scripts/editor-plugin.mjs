@@ -8,6 +8,10 @@
  *   GET    /api/posts/:slug          게시물 단건 (frontmatter + 본문)
  *   PUT    /api/posts/:slug          저장 (content/posts/<slug>.md 기록)
  *   DELETE /api/posts/:slug          삭제
+ *   GET    /api/categories           카테고리 목록 (categories.json + 게시물 파생, 게시물 수 포함)
+ *   POST   /api/categories           카테고리 추가 (content/categories.json 기록)
+ *   PUT    /api/categories/:name     카테고리 이름 수정 (사용 중인 게시물 frontmatter도 일괄 갱신)
+ *   DELETE /api/categories/:name     카테고리 삭제 (게시물이 사용 중이면 409)
  *   GET    /api/deploy/preview       배포 시 공개 상태가 바뀌는 게시물 목록
  *   POST   /api/deploy               git add → commit → push (Actions가 배포)
  */
@@ -17,10 +21,12 @@ import { execFile } from 'node:child_process'
 import { promisify } from 'node:util'
 import matter from 'gray-matter'
 import {
+  CATEGORIES_FILE,
   CONTENT_DIR,
   buildPosts,
   listPostFiles,
   parsePostFile,
+  readCategoryNames,
 } from './build-posts.mjs'
 
 const execFileAsync = promisify(execFile)
@@ -93,6 +99,51 @@ function savePost(slug, body) {
   fs.mkdirSync(CONTENT_DIR, { recursive: true })
   fs.writeFileSync(postFilePath(slug), md)
   buildPosts()
+  syncCategories()
+}
+
+// ---- 카테고리 ----------------------------------------------------------------
+// 게시물이 하나도 없는 카테고리도 유지할 수 있도록 content/categories.json에 저장하고,
+// 게시물 frontmatter에서 파생된 카테고리와 병합해 노출한다.
+
+function writeCategoryFile(names) {
+  const sorted = [...new Set(names)].sort((a, b) => a.localeCompare(b, 'ko'))
+  fs.writeFileSync(CATEGORIES_FILE, `${JSON.stringify(sorted, null, 2)}\n`)
+}
+
+function listCategories() {
+  const counts = new Map()
+  for (const file of listPostFiles()) {
+    const { category } = parsePostFile(file)
+    if (category) counts.set(category, (counts.get(category) ?? 0) + 1)
+  }
+  const names = new Set([...readCategoryNames(), ...counts.keys()])
+  return [...names]
+    .sort((a, b) => a.localeCompare(b, 'ko'))
+    .map((name) => ({ name, count: counts.get(name) ?? 0 }))
+}
+
+/** 카테고리 이름 변경: 사용 중인 모든 게시물(draft 포함)의 frontmatter를 함께 갱신 */
+function renameCategory(from, to) {
+  for (const file of listPostFiles()) {
+    const raw = fs.readFileSync(path.join(CONTENT_DIR, file), 'utf8')
+    const { data, content } = matter(raw)
+    if (data.category !== from) continue
+    data.category = to
+    // gray-matter는 따옴표 없는 날짜를 Date 객체로 파싱하므로 YYYY-MM-DD 문자열로 되돌린다
+    if (data.date instanceof Date) data.date = data.date.toISOString().slice(0, 10)
+    fs.writeFileSync(path.join(CONTENT_DIR, file), matter.stringify(content, data))
+  }
+  writeCategoryFile(readCategoryNames().map((n) => (n === from ? to : n)))
+}
+
+/** 게시물에서 파생된 카테고리를 categories.json에 합쳐 파일을 항상 동기화 상태로 유지 */
+function syncCategories() {
+  const current = readCategoryNames()
+  const merged = [...new Set([...current, ...listCategories().map((c) => c.name)])].sort(
+    (a, b) => a.localeCompare(b, 'ko'),
+  )
+  if (JSON.stringify(merged) !== JSON.stringify(current)) writeCategoryFile(merged)
 }
 
 // ---- 배포 ------------------------------------------------------------------
@@ -164,9 +215,10 @@ async function deployPreview() {
 async function deploy(message) {
   const log = []
   buildPosts()
-  await git('add', '-A', '--', 'content/posts')
+  // categories.json도 게시물과 함께 커밋되도록 content 전체를 스테이징
+  await git('add', '-A', '--', 'content')
 
-  const status = (await git('status', '--porcelain', '--', 'content/posts')).trim()
+  const status = (await git('status', '--porcelain', '--', 'content')).trim()
   if (status) {
     await git('commit', '-m', message || `게시물 업데이트 (${new Date().toISOString().slice(0, 10)})`)
     log.push('커밋 완료')
@@ -205,7 +257,50 @@ async function handleRequest(req, res) {
       const file = postFilePath(slug)
       if (fs.existsSync(file)) fs.rmSync(file)
       buildPosts()
+      syncCategories()
       return sendJson(res, 200, { ok: true })
+    }
+  }
+
+  if (segments[1] === 'categories') {
+    const name = segments[2] ? decodeURIComponent(segments[2]) : null
+
+    if (req.method === 'GET' && !name) {
+      return sendJson(res, 200, { categories: listCategories() })
+    }
+    if (req.method === 'POST' && !name) {
+      const body = await readBody(req)
+      const newName = String(body.name ?? '').trim()
+      if (!newName) return sendJson(res, 400, { error: '카테고리 이름을 입력하세요.' })
+      if (listCategories().some((c) => c.name === newName))
+        return sendJson(res, 409, { error: `이미 존재하는 카테고리입니다: ${newName}` })
+      writeCategoryFile([...readCategoryNames(), newName])
+      buildPosts() // index.json의 categories도 갱신 (사이드바 즉시 반영)
+      return sendJson(res, 200, { categories: listCategories() })
+    }
+    if (req.method === 'PUT' && name) {
+      const body = await readBody(req)
+      const newName = String(body.name ?? '').trim()
+      if (!newName) return sendJson(res, 400, { error: '새 카테고리 이름을 입력하세요.' })
+      if (!listCategories().some((c) => c.name === name))
+        return sendJson(res, 404, { error: `카테고리가 없습니다: ${name}` })
+      if (newName !== name && listCategories().some((c) => c.name === newName))
+        return sendJson(res, 409, { error: `이미 존재하는 카테고리입니다: ${newName}` })
+      if (newName !== name) {
+        renameCategory(name, newName)
+        buildPosts()
+      }
+      return sendJson(res, 200, { categories: listCategories() })
+    }
+    if (req.method === 'DELETE' && name) {
+      const target = listCategories().find((c) => c.name === name)
+      if (target && target.count > 0)
+        return sendJson(res, 409, {
+          error: `게시물 ${target.count}개가 사용 중인 카테고리는 삭제할 수 없습니다.`,
+        })
+      writeCategoryFile(readCategoryNames().filter((n) => n !== name))
+      buildPosts()
+      return sendJson(res, 200, { categories: listCategories() })
     }
   }
 
@@ -228,10 +323,14 @@ export function editorApiPlugin() {
     apply: 'serve',
     configureServer(server) {
       buildPosts()
+      syncCategories()
       // 에디터 밖에서 md 파일을 직접 수정해도 public/posts가 갱신되도록 감시
       server.watcher.add(CONTENT_DIR)
       server.watcher.on('change', (file) => {
-        if (file.startsWith(CONTENT_DIR)) buildPosts()
+        if (file.startsWith(CONTENT_DIR)) {
+          buildPosts()
+          syncCategories()
+        }
       })
 
       server.middlewares.use((req, res, next) => {
