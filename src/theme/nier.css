@@ -3,18 +3,18 @@
    ============================================================ */
 
 :root {
-  --nier-bg: #cdc8b0;
-  --nier-bg-dim: #c2bda5;
-  --nier-panel: #dcd8c2;
-  --nier-panel-dim: #d3cfb8;
+  --nier-bg: #e8dfc9;
+  --nier-bg-dim: #dbd1b8;
+  --nier-panel: #f2ecda;
+  --nier-panel-dim: #ece5cf;
   --nier-dark: #4c4a43;
   --nier-dark-soft: #5d5a51;
   --nier-text: #454138;
   --nier-text-dim: #7a7666;
-  --nier-text-inv: #dcd8c0;
-  --nier-line: #a8a28c;
-  --nier-line-soft: #b9b49c;
-  --nier-accent: #b0aa94;
+  --nier-text-inv: #ede6d2;
+  --nier-line: #a99f82;
+  --nier-line-soft: #c6bb9b;
+  --nier-accent: #b7ad8f;
   --nier-alert: #b05a4a;
 
   --font-sans: 'Noto Sans KR', 'Apple SD Gothic Neo', sans-serif;
@@ -111,7 +111,7 @@ a {
   background-image:
     linear-gradient(var(--nier-line-soft) 1px, transparent 1px),
     linear-gradient(90deg, var(--nier-line-soft) 1px, transparent 1px);
-  background-size: 48px 48px;
+  background-size: 16px 16px;
   opacity: 0.35;
 }
 
@@ -200,7 +200,7 @@ a {
   font-size: 0.8125rem;
   letter-spacing: 0.1em;
   padding: 6px 12px;
-  background: rgba(220, 216, 192, 0.12);
+  background: rgba(237, 230, 210, 0.12);
   border: 1px solid var(--nier-text-inv);
   color: var(--nier-text-inv);
   border-radius: 0;
@@ -209,7 +209,7 @@ a {
 }
 
 .top-bar__search input::placeholder {
-  color: rgba(220, 216, 192, 0.55);
+  color: rgba(237, 230, 210, 0.55);
 }
 
 .top-bar__search input:focus {
