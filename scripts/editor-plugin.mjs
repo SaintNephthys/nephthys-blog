@@ -23,7 +23,9 @@ import matter from 'gray-matter'
 import {
   CATEGORIES_FILE,
   CONTENT_DIR,
+  DRAFTS_DIR,
   buildPosts,
+  listDraftFiles,
   listPostFiles,
   parsePostFile,
   readCategoryNames,
@@ -68,21 +70,39 @@ function assertSlug(slug) {
   }
 }
 
-function postFilePath(slug) {
+/** slug에 해당하는 게시(published)/초안(draft) 경로 — draft는 gitignore 디렉터리에 격리 */
+function postPaths(slug) {
   assertSlug(slug)
-  return path.join(CONTENT_DIR, `${slug}.md`)
+  return {
+    published: path.join(CONTENT_DIR, `${slug}.md`),
+    draft: path.join(DRAFTS_DIR, `${slug}.md`),
+  }
+}
+
+/** 두 디렉터리에서 slug를 찾는다. draft 디렉터리가 우선. */
+function findPost(slug) {
+  const paths = postPaths(slug)
+  if (fs.existsSync(paths.draft)) return { file: paths.draft, dir: DRAFTS_DIR, draft: true }
+  if (fs.existsSync(paths.published))
+    return { file: paths.published, dir: CONTENT_DIR, draft: false }
+  return null
 }
 
 // ---- 게시물 CRUD -----------------------------------------------------------
 
 function listAllPosts() {
-  return listPostFiles()
-    .map((file) => {
-      const { content, ...meta } = parsePostFile(file)
-      void content
-      return meta
-    })
-    .sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : 0))
+  const stripContent = ({ content, ...meta }) => {
+    void content
+    return meta
+  }
+  const published = listPostFiles().map((file) => stripContent(parsePostFile(file)))
+  const drafts = listDraftFiles().map((file) => ({
+    ...stripContent(parsePostFile(file, DRAFTS_DIR)),
+    draft: true,
+  }))
+  return [...published, ...drafts].sort((a, b) =>
+    a.date < b.date ? 1 : a.date > b.date ? -1 : 0,
+  )
 }
 
 function savePost(slug, body) {
@@ -94,12 +114,28 @@ function savePost(slug, body) {
   }
   const category = String(body.category ?? '').trim()
   if (category) data.category = category
-  if (body.draft === true) data.draft = true
+  const isDraft = body.draft === true
+  if (isDraft) data.draft = true
   const md = matter.stringify(String(body.content ?? ''), data)
-  fs.mkdirSync(CONTENT_DIR, { recursive: true })
-  fs.writeFileSync(postFilePath(slug), md)
+  const paths = postPaths(slug)
+  const target = isDraft ? paths.draft : paths.published
+  const other = isDraft ? paths.published : paths.draft
+  fs.mkdirSync(path.dirname(target), { recursive: true })
+  fs.writeFileSync(target, md)
+  // 공개 상태가 바뀌면 반대편 디렉터리의 파일을 제거해 "이동" 시맨틱을 유지
+  if (fs.existsSync(other)) fs.rmSync(other)
   buildPosts()
   syncCategories()
+}
+
+/** content/posts에 남아 있는 draft: true 파일을 drafts 디렉터리로 이동 (서버 시작 시 1회) */
+function relocateDrafts() {
+  for (const file of listPostFiles()) {
+    if (!parsePostFile(file).draft) continue
+    fs.mkdirSync(DRAFTS_DIR, { recursive: true })
+    fs.renameSync(path.join(CONTENT_DIR, file), path.join(DRAFTS_DIR, file))
+    console.log(`[editor] draft 이동: content/posts/${file} → content/drafts/${file}`)
+  }
 }
 
 // ---- 카테고리 ----------------------------------------------------------------
@@ -113,8 +149,8 @@ function writeCategoryFile(names) {
 
 function listCategories() {
   const counts = new Map()
-  for (const file of listPostFiles()) {
-    const { category } = parsePostFile(file)
+  for (const { dir, file } of allPostEntries()) {
+    const { category } = parsePostFile(file, dir)
     if (category) counts.set(category, (counts.get(category) ?? 0) + 1)
   }
   const names = new Set([...readCategoryNames(), ...counts.keys()])
@@ -123,16 +159,24 @@ function listCategories() {
     .map((name) => ({ name, count: counts.get(name) ?? 0 }))
 }
 
+/** (dir, file) 쌍 목록 — 게시됨 + 초안 전체 순회용 */
+function allPostEntries() {
+  return [
+    ...listPostFiles().map((file) => ({ dir: CONTENT_DIR, file })),
+    ...listDraftFiles().map((file) => ({ dir: DRAFTS_DIR, file })),
+  ]
+}
+
 /** 카테고리 이름 변경: 사용 중인 모든 게시물(draft 포함)의 frontmatter를 함께 갱신 */
 function renameCategory(from, to) {
-  for (const file of listPostFiles()) {
-    const raw = fs.readFileSync(path.join(CONTENT_DIR, file), 'utf8')
+  for (const { dir, file } of allPostEntries()) {
+    const raw = fs.readFileSync(path.join(dir, file), 'utf8')
     const { data, content } = matter(raw)
     if (data.category !== from) continue
     data.category = to
     // gray-matter는 따옴표 없는 날짜를 Date 객체로 파싱하므로 YYYY-MM-DD 문자열로 되돌린다
     if (data.date instanceof Date) data.date = data.date.toISOString().slice(0, 10)
-    fs.writeFileSync(path.join(CONTENT_DIR, file), matter.stringify(content, data))
+    fs.writeFileSync(path.join(dir, file), matter.stringify(content, data))
   }
   writeCategoryFile(readCategoryNames().map((n) => (n === from ? to : n)))
 }
@@ -203,9 +247,14 @@ async function deployPreview() {
     if (!wasPublic && isPublic) result.publish.push(title)
     else if (wasPublic && !isPublic) result.unpublish.push(title)
     else if (wasPublic && isPublic) {
-      const rawNow = fs.readFileSync(postFilePath(file.replace(/\.md$/, '')), 'utf8')
+      const rawNow = fs.readFileSync(path.join(CONTENT_DIR, file), 'utf8')
       if (prev.raw !== rawNow) result.update.push(title)
     } else if (next?.draft) result.drafts.push(title)
+  }
+
+  // 초안은 gitignore된 content/drafts/에 있으므로 배포(커밋)에 포함되지 않는다 — 안내용 목록
+  for (const file of listDraftFiles()) {
+    result.drafts.push(parsePostFile(file, DRAFTS_DIR).title)
   }
 
   const status = (await git('status', '--porcelain', '--', 'content/posts')).trim()
@@ -245,17 +294,20 @@ async function handleRequest(req, res) {
       return sendJson(res, 200, { posts: listAllPosts() })
     }
     if (req.method === 'GET' && slug) {
-      const file = postFilePath(slug)
-      if (!fs.existsSync(file)) return sendJson(res, 404, { error: '게시물이 없습니다.' })
-      return sendJson(res, 200, parsePostFile(`${slug}.md`))
+      const found = findPost(slug)
+      if (!found) return sendJson(res, 404, { error: '게시물이 없습니다.' })
+      return sendJson(res, 200, {
+        ...parsePostFile(`${slug}.md`, found.dir),
+        draft: found.draft,
+      })
     }
     if (req.method === 'PUT' && slug) {
       savePost(slug, await readBody(req))
       return sendJson(res, 200, { ok: true })
     }
     if (req.method === 'DELETE' && slug) {
-      const file = postFilePath(slug)
-      if (fs.existsSync(file)) fs.rmSync(file)
+      const found = findPost(slug)
+      if (found) fs.rmSync(found.file)
       buildPosts()
       syncCategories()
       return sendJson(res, 200, { ok: true })
@@ -322,12 +374,14 @@ export function editorApiPlugin() {
     name: 'nephthys-editor-api',
     apply: 'serve',
     configureServer(server) {
+      relocateDrafts() // content/posts에 남은 draft를 gitignore 디렉터리로 격리
       buildPosts()
       syncCategories()
       // 에디터 밖에서 md 파일을 직접 수정해도 public/posts가 갱신되도록 감시
       server.watcher.add(CONTENT_DIR)
+      server.watcher.add(DRAFTS_DIR)
       server.watcher.on('change', (file) => {
-        if (file.startsWith(CONTENT_DIR)) {
+        if (file.startsWith(CONTENT_DIR) || file.startsWith(DRAFTS_DIR)) {
           buildPosts()
           syncCategories()
         }

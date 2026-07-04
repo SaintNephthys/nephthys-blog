@@ -6,8 +6,8 @@
  * - content/categories.json + 게시물 파생 카테고리를 병합한 categories 배열도
  *   index.json에 포함한다 → 게시물이 0개인 카테고리도 사이드바에 노출된다.
  * - 본문(frontmatter 제거)을 public/posts/<slug>.md 로 복사한다.
- * - draft: true 게시물은 index.json과 public/posts에서 제외된다.
- *   → 미완성 글이 push되어도 배포된 블로그에는 노출되지 않는다.
+ * - draft 게시물은 content/drafts/(gitignore)에 저장되어 저장소에 올라가지 않는다.
+ *   content/posts/에 draft: true 파일이 남아 있어도 산출물에서는 방어적으로 제외된다.
  *
  * 실행: node scripts/build-posts.mjs (빌드 prebuild / dev 플러그인에서 호출)
  */
@@ -18,6 +18,8 @@ import matter from 'gray-matter'
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 export const CONTENT_DIR = path.join(ROOT, 'content', 'posts')
+// draft 게시물 저장소 — gitignore되어 어떤 커밋 경로로도 저장소에 올라가지 않는다
+export const DRAFTS_DIR = path.join(ROOT, 'content', 'drafts')
 export const CATEGORIES_FILE = path.join(ROOT, 'content', 'categories.json')
 const OUT_DIR = path.join(ROOT, 'public', 'posts')
 
@@ -36,8 +38,8 @@ function normalizeDate(value) {
   return ''
 }
 
-export function parsePostFile(file) {
-  const raw = fs.readFileSync(path.join(CONTENT_DIR, file), 'utf8')
+export function parsePostFile(file, dir = CONTENT_DIR) {
+  const raw = fs.readFileSync(path.join(dir, file), 'utf8')
   const { data, content } = matter(raw)
   const slug = file.replace(/\.md$/, '')
   return {
@@ -82,6 +84,11 @@ function extractSearchText(content) {
 export function listPostFiles() {
   if (!fs.existsSync(CONTENT_DIR)) return []
   return fs.readdirSync(CONTENT_DIR).filter((f) => f.endsWith('.md'))
+}
+
+export function listDraftFiles() {
+  if (!fs.existsSync(DRAFTS_DIR)) return []
+  return fs.readdirSync(DRAFTS_DIR).filter((f) => f.endsWith('.md'))
 }
 
 export function buildPosts() {

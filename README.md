@@ -11,7 +11,7 @@ React 19 + Vite + TypeScript, GitHub Pages 호스팅.
 - **탐색**: 카테고리(사이드바 펼침 메뉴)·태그·검색(제목/태그/헤더/구분점), 게시물 우측 CONTENTS 목차(H1 기준)
 - **에디터** (`/#/editor`, 로컬 dev 전용): 작성 → 저장 → 게시(draft 해제) → 배포(git push)를 한 페이지에서.
   Markdown 서식 도구바, 실시간 프리뷰, 카테고리 드롭다운, 배포 전 공개 상태 변화 확인 다이얼로그
-- **draft**: `draft: true` 게시물은 push되어도 블로그에 노출되지 않음
+- **draft**: 초안은 `content/drafts/`(gitignore)에 저장되어 저장소에 아예 올라가지 않음 — PUBLISH 시 `content/posts/`로 이동
 - 글씨 크기 조절(사이드바 A−/A+), 반응형 레이아웃
 
 ## 개발

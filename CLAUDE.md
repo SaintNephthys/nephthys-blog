@@ -22,10 +22,11 @@ MarkdownRenderer와 동일한 플러그인 체인을 node에서 돌려 스모크
 
 ### 콘텐츠 파이프라인
 - 게시물 원본: `content/posts/*.md` (frontmatter: `title, date, category, tags, summary, draft`)
+- **draft 게시물은 `content/drafts/*.md`에 저장** — gitignore되어 저장소에 아예 올라가지 않는다. 에디터의 PUBLISH 토글이 두 디렉터리 간 파일을 이동시키며, dev 서버 시작 시 `content/posts/`에 남은 `draft: true` 파일을 자동으로 `content/drafts/`로 격리한다.
 - `scripts/build-posts.mjs`가 생성하는 것:
   - `public/posts/index.json` — 메타데이터 + `searchText`(본문의 모든 헤더와 `- ` 구분점 텍스트를 추출, 코드 블럭 제외·인라인 서식 제거) + `categories`(content/categories.json과 게시물 파생 카테고리의 병합 — 게시물 0개 카테고리도 사이드바에 노출)
   - `public/posts/<slug>.md` — 본문 (frontmatter 제거)
-  - **`draft: true` 게시물은 산출물에서 제외** — push되어도 공개되지 않는다
+  - `content/posts/`에 `draft: true` 파일이 남아 있어도 산출물에서 방어적으로 제외된다
 - `public/posts/`는 자동 생성물이므로 gitignore됨. dev 서버 시작 시와 md 변경 시 자동 재생성.
 - 클라이언트(`src/lib/posts.ts`)는 초기에 index.json만 fetch하고 본문은 열람 시 개별 fetch. 검색도 index.json의 `searchText`만 사용(검색 범위: 태그·제목·헤더·구분점).
 - index.json은 모듈 캐시 + 구독 구조 — 에디터에서 게시물/카테고리 변경 시 `invalidatePostIndex()`가 캐시를 비우고 `usePostIndex` 사용처(사이드바 카테고리 등)를 새로고침 없이 재조회시킨다.
