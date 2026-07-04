@@ -9,7 +9,10 @@ import SearchPage from './pages/SearchPage'
 
 // 무거운 의존성(KaTeX, highlight.js, 에디터)은 게시물/에디터 진입 시에만 로드
 const PostPage = lazy(() => import('./pages/PostPage'))
-const EditorPage = lazy(() => import('./pages/EditorPage'))
+// 에디터는 로컬 dev 전용 — 프로덕션 빌드에서는 라우트와 청크가 모두 제거된다
+const EditorPage = import.meta.env.DEV
+  ? lazy(() => import('./pages/EditorPage'))
+  : null
 
 function App() {
   return (
@@ -29,14 +32,16 @@ function App() {
           <Route path="tag/:tag" element={<TagPage />} />
           <Route path="category/:category" element={<CategoryPage />} />
           <Route path="search/:query" element={<SearchPage />} />
-          <Route
-            path="editor"
-            element={
-              <Suspense fallback={<div className="loading">LOADING</div>}>
-                <EditorPage />
-              </Suspense>
-            }
-          />
+          {EditorPage && (
+            <Route
+              path="editor"
+              element={
+                <Suspense fallback={<div className="loading">LOADING</div>}>
+                  <EditorPage />
+                </Suspense>
+              }
+            />
+          )}
           <Route path="*" element={<Navigate to="/" replace />} />
         </Route>
       </Routes>

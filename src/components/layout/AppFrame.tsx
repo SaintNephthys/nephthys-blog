@@ -7,7 +7,8 @@ import SideTabBar, { type NavItem } from './SideTabBar'
 const NAV_ITEMS: NavItem[] = [
   { label: 'HOME', to: '/' },
   { label: 'TAGS', to: '/tags' },
-  { label: 'EDITOR', to: '/editor' },
+  // 에디터는 로컬 dev 전용 페이지 — 배포된 사이트의 메뉴에는 노출하지 않는다
+  ...(import.meta.env.DEV ? [{ label: 'EDITOR', to: '/editor' }] : []),
 ]
 
 /**

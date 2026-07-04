@@ -18,32 +18,13 @@ function today(): string {
   return new Date().toISOString().slice(0, 10)
 }
 
-function EditorPage() {
-  // 정적 배포본에는 에디터 API가 없다 — 로컬 dev 서버에서만 동작
-  if (!import.meta.env.DEV) {
-    return (
-      <div className="editor-notice">
-        <Panel title="EDITOR — OFFLINE">
-          <p>
-            에디터는 로컬 개발 서버에서만 사용할 수 있습니다. 저장소를 클론한 뒤
-            아래 명령으로 dev 서버를 실행하고 다시 접속하세요.
-          </p>
-          <pre style={{ padding: '10px 14px' }}>
-            <code>npm run dev</code>
-          </pre>
-        </Panel>
-      </div>
-    )
-  }
-  return <EditorWorkspace />
-}
-
 interface StatusMessage {
   text: string
   error?: boolean
 }
 
-function EditorWorkspace() {
+// 로컬 dev 전용 페이지 — App.tsx가 DEV일 때만 라우트를 등록하므로 프로덕션에서는 로드되지 않는다
+function EditorPage() {
   const [posts, setPosts] = useState<EditorPostMeta[]>([])
   const [form, setForm] = useState<EditorPost | null>(null)
   const [tagsInput, setTagsInput] = useState('')
