@@ -1,10 +1,10 @@
 /* ============================================================
-   NieR:Automata UI theme (reference-files/nier.jpeg)
+   NieR:Automata UI theme (reference-files/nier_theme.jpeg)
    ============================================================ */
 
 :root {
-  --nier-bg: #e8dfc9;
-  --nier-bg-dim: #dbd1b8;
+  --nier-bg: #e2d6bc;
+  --nier-bg-dim: #d5c9ac;
   --nier-panel: #f2ecda;
   --nier-panel-dim: #ece5cf;
   --nier-dark: #4c4a43;
@@ -108,28 +108,49 @@ a {
   inset: 0;
   z-index: 0;
   pointer-events: none;
+  overflow: hidden;
+  /* nier_theme.jpeg의 좌우 가장자리 어두움 (비네트) */
+  background: linear-gradient(
+    90deg,
+    rgba(74, 68, 54, 0.22),
+    transparent 22%,
+    transparent 78%,
+    rgba(74, 68, 54, 0.22)
+  );
+}
+
+/* 촘촘한 배경 격자 — 도형·비네트와 opacity를 분리하기 위해 ::before에 그린다 */
+.bg-layer::before {
+  content: '';
+  position: absolute;
+  inset: 0;
   background-image:
     linear-gradient(var(--nier-line-soft) 1px, transparent 1px),
     linear-gradient(90deg, var(--nier-line-soft) 1px, transparent 1px);
-  background-size: 16px 16px;
-  opacity: 0.35;
+  background-size: 8px 8px;
+  opacity: 0.15;
 }
 
-.bg-layer::after {
-  content: '';
+/* 모서리 도형 (이중 원호 + 45° 평행선) — nier_theme.jpeg 좌상단/우하단 모티프 */
+.bg-figure {
   position: absolute;
+  width: 125vh;
+  height: 125vh;
+  color: var(--nier-line);
+  opacity: 0.5;
+}
+
+.bg-figure--tl {
+  top: 0;
   left: 0;
-  right: 0;
+  transform: rotate(180deg);
+}
+
+/* 브라우저가 16:9보다 넓으면 우측 끝을 따라가고,
+   좁으면 16:9 시점의 절대 위치에 고정되어 오른쪽부터 가려진다 */
+.bg-figure--br {
   bottom: 0;
-  height: 44px;
-  background: repeating-linear-gradient(
-    90deg,
-    var(--nier-dark) 0 3px,
-    transparent 3px 9px
-  );
-  opacity: 0.25;
-  -webkit-mask-image: linear-gradient(to top, #000 20%, transparent);
-  mask-image: linear-gradient(to top, #000 20%, transparent);
+  left: calc(max(100vw, 100vh * 16 / 9) - 125vh);
 }
 
 /* ============================================================
