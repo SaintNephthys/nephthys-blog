@@ -1038,43 +1038,65 @@ a {
 }
 
 .markdown pre {
-  /* NieR:Automata Light (shelune/vscode-nier-automata-light) editor 색상 */
-  background: #dad3ba;
-  color: #4e4b42;
+  /* 배경 #f2ecda(--nier-panel) — 토큰 색상은 아래 hljs 매핑 참조 */
+  display: flex;
+  background: var(--nier-panel);
+  color: var(--nier-text);
   border: 1px solid var(--nier-dark);
   box-shadow: 3px 3px 0 rgba(69, 65, 56, 0.3);
-  /* 상하 여백 — hover 시 뜨는 언어명/COPY 버튼이 코드를 가리지 않도록 */
-  padding: 32px 18px 22px;
+  padding: 0;
   overflow-x: auto;
   line-height: 1.6;
   margin: 1.2em 0;
 }
 
+/* 줄 번호 거터 — 가로 스크롤 시에도 좌측에 고정(sticky).
+   상하 padding·font-size·line-height가 code와 일치해야 줄이 어긋나지 않는다 */
+.codeblock__lines {
+  position: sticky;
+  left: 0;
+  flex: none;
+  padding: 32px 10px 22px 14px;
+  background: var(--nier-panel);
+  border-right: 1px solid var(--nier-line-soft);
+  color: var(--nier-text-dim);
+  font-family: var(--font-mono);
+  font-size: 0.875rem;
+  line-height: 1.6;
+  text-align: right;
+  white-space: pre;
+  user-select: none;
+}
+
 .markdown pre code {
+  display: block;
   background: none;
   border: none;
-  padding: 0;
+  /* 상하 여백 — hover 시 뜨는 언어명/COPY 버튼이 코드를 가리지 않도록 */
+  padding: 32px 18px 22px 14px;
   font-size: 0.875rem;
 }
 
-/* highlight.js — NieR:Automata Light 테마 매핑
-   (shelune/vscode-nier-automata-light tokenColors 참조) */
+/* highlight.js — NieR:Automata Light(shelune/vscode-nier-automata-light)의 색상 계열(hue)을
+   유지하되, 일반적인 라이트 테마 코드 블럭처럼 채도·명도가 또렷한 비비드 톤.
+   각 토큰은 크림 배경(#f2ecda) 위에서 WCAG AA(4.5:1)를 만족하는 가장 밝은 값.
+   주석은 관례대로 무채색에 가깝게 유지해 코드 토큰이 도드라지도록 한다 */
 .hljs-comment,
 .hljs-quote {
-  color: #a5a18e; /* comment */
+  color: #6e6a58; /* comment — 4.60:1 */
   font-style: italic;
 }
 
 .hljs-keyword,
 .hljs-selector-tag,
 .hljs-doctag {
-  color: #b56151; /* keyword */
+  color: #c63316; /* keyword — brick red, 4.58:1 */
 }
 
 .hljs-string,
 .hljs-regexp,
 .hljs-deletion {
-  color: #727b5b; /* string */
+  color: #597310; /* string — olive green, 4.58:1 */
 }
 
 .hljs-number,
@@ -1082,20 +1104,20 @@ a {
 .hljs-symbol,
 .hljs-link,
 .hljs-meta {
-  color: #585897; /* constant.numeric / constant.language */
+  color: #5252d6; /* constant.numeric / constant.language — indigo, 5.03:1 */
 }
 
 .hljs-title,
 .hljs-title.function_,
 .hljs-built_in,
 .hljs-addition {
-  color: #cc654c; /* entity.name.function / support.function */
+  color: #ba430c; /* entity.name.function / support.function — burnt orange, 4.57:1 */
 }
 
 .hljs-title.class_,
 .hljs-name,
 .hljs-section {
-  color: #727b5b; /* entity.name.tag / markup.heading */
+  color: #597310; /* entity.name.tag / markup.heading — 4.58:1 */
   font-weight: 600;
 }
 
@@ -1105,32 +1127,32 @@ a {
 .hljs-selector-pseudo,
 .hljs-selector-attr,
 .hljs-template-variable {
-  color: #3ba49a; /* storage.type / attribute-name */
+  color: #03786c; /* storage.type / attribute-name — teal, 4.55:1 */
   font-style: italic;
 }
 
 .hljs-params,
 .hljs-selector-id,
 .hljs-subst {
-  color: #623551; /* variable.parameter */
+  color: #c02491; /* variable.parameter — magenta, 4.56:1 */
 }
 
 .hljs-variable,
 .hljs-property,
 .hljs-punctuation {
-  color: #4e4b42; /* variable / source */
+  color: var(--nier-text); /* variable / source — 8.61:1 */
 }
 
 .hljs-operator {
-  color: #888d94; /* punctuation */
+  color: #5f646b; /* punctuation — 5.05:1 */
 }
 
 .hljs-selector-class {
-  color: #cc654c;
+  color: #ba430c;
 }
 
 .hljs-variable.language_ {
-  color: #b56151; /* self / this */
+  color: #c63316; /* self / this */
   font-style: italic;
 }
 

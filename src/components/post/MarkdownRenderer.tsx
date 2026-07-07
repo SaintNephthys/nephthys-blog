@@ -11,15 +11,25 @@ import rehypeRaw from 'rehype-raw'
 import rehypeKatex from 'rehype-katex'
 import rehypeHighlight from 'rehype-highlight'
 import rehypeSlug from 'rehype-slug'
+import type { ElementContent } from 'hast'
 import 'katex/dist/katex.min.css'
 
 type PreProps = ComponentPropsWithoutRef<'pre'> & ExtraProps
 
+function extractText(nodes: ElementContent[] | undefined): string {
+  if (!nodes) return ''
+  return nodes
+    .map((n) =>
+      n.type === 'text' ? n.value : 'children' in n ? extractText(n.children) : '',
+    )
+    .join('')
+}
+
 /**
- * 코드 블럭 래퍼 — hover 시 좌상단에 언어, 우상단에 COPY 버튼 표시 (Obsidian 방식)
+ * 코드 블럭 래퍼 — hover 시 좌상단에 언어, 우상단에 COPY 버튼 표시 (Obsidian 방식).
+ * 좌측에 줄 번호 거터를 렌더 — 줄 수는 hast 노드에서 렌더 시점에 동기 계산한다.
  */
 function CodeBlock({ node, children, ...rest }: PreProps) {
-  void node
   const preRef = useRef<HTMLPreElement>(null)
   const [copied, setCopied] = useState(false)
 
@@ -30,8 +40,14 @@ function CodeBlock({ node, children, ...rest }: PreProps) {
     if (match) lang = match[1]
   }
 
+  const lineCount = Math.max(
+    1,
+    extractText(node?.children).replace(/\n$/, '').split('\n').length,
+  )
+
   const copy = () => {
-    const text = preRef.current?.innerText ?? ''
+    // 거터(줄 번호)가 포함되지 않도록 code 요소의 텍스트만 복사한다
+    const text = preRef.current?.querySelector('code')?.innerText ?? ''
     void navigator.clipboard.writeText(text).then(() => {
       setCopied(true)
       setTimeout(() => setCopied(false), 1500)
@@ -45,6 +61,9 @@ function CodeBlock({ node, children, ...rest }: PreProps) {
         {copied ? 'COPIED!' : 'COPY'}
       </button>
       <pre ref={preRef} {...rest}>
+        <span className="codeblock__lines" aria-hidden="true">
+          {Array.from({ length: lineCount }, (_, i) => i + 1).join('\n')}
+        </span>
         {children}
       </pre>
     </div>
