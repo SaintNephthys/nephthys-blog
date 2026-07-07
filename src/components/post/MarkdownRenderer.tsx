@@ -1,10 +1,11 @@
 import {
   isValidElement,
+  useMemo,
   useRef,
   useState,
   type ComponentPropsWithoutRef,
 } from 'react'
-import ReactMarkdown, { type ExtraProps } from 'react-markdown'
+import ReactMarkdown, { type Components, type ExtraProps } from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import remarkMath from 'remark-math'
 import rehypeRaw from 'rehype-raw'
@@ -72,16 +73,36 @@ function CodeBlock({ node, children, ...rest }: PreProps) {
 
 interface MarkdownRendererProps {
   content: string
+  /** 상대 경로 이미지의 해석 기준 URL — 게시물 이미지 디렉터리 (없으면 src를 그대로 둔다) */
+  assetBase?: string
 }
 
+/** 외부 URL(스킴)·절대 경로·data URI가 아닌, 게시물 디렉터리 기준 상대 참조인지 판별 */
+const RELATIVE_SRC_RE = /^(?![a-z][a-z0-9+.-]*:|\/)/i
+
 /** 게시물 뷰어와 에디터 프리뷰가 공용으로 사용하는 Markdown 렌더러 */
-function MarkdownRenderer({ content }: MarkdownRendererProps) {
+function MarkdownRenderer({ content, assetBase }: MarkdownRendererProps) {
+  const components = useMemo<Components>(
+    () => ({
+      pre: CodeBlock,
+      img: ({ node, src, ...rest }) => {
+        void node
+        const resolved =
+          assetBase && typeof src === 'string' && RELATIVE_SRC_RE.test(src)
+            ? assetBase + src
+            : src
+        return <img {...rest} src={resolved} loading="lazy" />
+      },
+    }),
+    [assetBase],
+  )
+
   return (
     <div className="markdown">
       <ReactMarkdown
         remarkPlugins={[remarkGfm, remarkMath]}
         rehypePlugins={[rehypeRaw, rehypeKatex, rehypeHighlight, rehypeSlug]}
-        components={{ pre: CodeBlock }}
+        components={components}
       >
         {content}
       </ReactMarkdown>

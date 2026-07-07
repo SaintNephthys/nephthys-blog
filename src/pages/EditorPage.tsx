@@ -12,6 +12,7 @@ import {
   listCategories,
   listPosts,
   savePost,
+  uploadImage,
   type CategoryInfo,
   type DeployPreview,
   type EditorPost,
@@ -125,8 +126,8 @@ function EditorPage() {
     setStatus(null)
   }
 
-  const save = async (overrides?: Partial<EditorPost>) => {
-    if (!form) return
+  const save = async (overrides?: Partial<EditorPost>): Promise<boolean> => {
+    if (!form) return false
     const post: EditorPost = {
       ...form,
       ...overrides,
@@ -146,6 +147,42 @@ function EditorPage() {
       })
       await Promise.all([refreshList(), refreshCategories()])
       invalidatePostIndex() // 사이드바 카테고리 등 공개 index 사용처 즉시 갱신
+      return true
+    } catch (err) {
+      setStatus({ text: (err as Error).message, error: true })
+      return false
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  /** 커서 위치에 텍스트 삽입 (도구바의 선택 복원 패턴과 동일) */
+  const insertAtCursor = (text: string) => {
+    const ta = textareaRef.current
+    if (!ta) return
+    const { selectionStart: start, selectionEnd: end, value } = ta
+    updateForm({ content: value.slice(0, start) + text + value.slice(end) })
+    requestAnimationFrame(() => {
+      ta.focus()
+      ta.setSelectionRange(start + text.length, start + text.length)
+    })
+  }
+
+  /** 이미지 업로드 → 커서 위치에 ![](파일명) 삽입. 미저장 새 글은 먼저 자동 저장한다. */
+  const uploadImages = async (files: File[]) => {
+    if (!form) return
+    const images = files.filter((f) => f.type.startsWith('image/'))
+    if (images.length === 0) return
+    // 서버에 게시물 파일이 있어야 저장 위치(공개/초안)가 정해진다
+    if (isNew && !(await save())) return
+    setBusy(true)
+    try {
+      for (const file of images) {
+        setStatus({ text: `이미지 업로드 중… ${file.name}` })
+        const { file: saved } = await uploadImage(form.slug, file)
+        insertAtCursor(`![](${saved})`)
+      }
+      setStatus({ text: `이미지 ${images.length}개 업로드 완료` })
     } catch (err) {
       setStatus({ text: (err as Error).message, error: true })
     } finally {
@@ -356,13 +393,31 @@ function EditorPage() {
             <MarkdownToolbar
               textareaRef={textareaRef}
               onChange={(content) => updateForm({ content })}
+              onUploadImages={(files) => void uploadImages(files)}
             />
             <textarea
               ref={textareaRef}
               className="editor__textarea"
               value={form.content}
               onChange={(e) => updateForm({ content: e.target.value })}
-              placeholder="Markdown 본문… ($수식$, ```코드```, 표 지원)"
+              onPaste={(e) => {
+                const files = Array.from(e.clipboardData.files)
+                if (files.some((f) => f.type.startsWith('image/'))) {
+                  e.preventDefault()
+                  void uploadImages(files)
+                }
+              }}
+              onDragOver={(e) => {
+                if (e.dataTransfer.types.includes('Files')) e.preventDefault()
+              }}
+              onDrop={(e) => {
+                const files = Array.from(e.dataTransfer.files)
+                if (files.some((f) => f.type.startsWith('image/'))) {
+                  e.preventDefault()
+                  void uploadImages(files)
+                }
+              }}
+              placeholder="Markdown 본문… ($수식$, ```코드```, 표 지원 · 이미지 붙여넣기/드롭 업로드)"
             />
 
             <div className="editor__toolbar">
@@ -395,7 +450,10 @@ function EditorPage() {
 
         {form && (
           <div className="editor__preview">
-            <MarkdownRenderer content={form.content || '*프리뷰: 본문을 입력하세요.*'} />
+            <MarkdownRenderer
+              content={form.content || '*프리뷰: 본문을 입력하세요.*'}
+              assetBase={`${import.meta.env.BASE_URL}posts/images/${form.slug}/`}
+            />
           </div>
         )}
       </div>

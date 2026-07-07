@@ -1,8 +1,10 @@
-import type { RefObject } from 'react'
+import { useRef, type RefObject } from 'react'
 
 interface MarkdownToolbarProps {
   textareaRef: RefObject<HTMLTextAreaElement | null>
   onChange: (content: string) => void
+  /** 이미지 파일 선택 시 업로드 위임 (미지정 시 IMG 버튼 미노출) */
+  onUploadImages?: (files: File[]) => void
 }
 
 /** 선택 영역에서 Markdown 서식 문법을 제거 */
@@ -25,7 +27,9 @@ function stripFormatting(text: string): string {
  * 텍스트를 선택한 뒤 버튼을 누르면 해당 서식이 적용된다.
  * 가장 좌측은 '스타일 제거' — 선택 영역의 서식 문법을 걷어낸다.
  */
-function MarkdownToolbar({ textareaRef, onChange }: MarkdownToolbarProps) {
+function MarkdownToolbar({ textareaRef, onChange, onUploadImages }: MarkdownToolbarProps) {
+  const fileInputRef = useRef<HTMLInputElement>(null)
+
   /** 변경된 본문을 반영하고 지정 구간을 다시 선택 상태로 만든다 */
   const commit = (next: string, selStart: number, selEnd: number) => {
     onChange(next)
@@ -131,6 +135,28 @@ function MarkdownToolbar({ textareaRef, onChange }: MarkdownToolbarProps) {
       >
         LINK
       </button>
+      {onUploadImages && (
+        <>
+          <button
+            type="button"
+            title="이미지 삽입 (붙여넣기/드롭도 가능)"
+            onClick={() => fileInputRef.current?.click()}
+          >
+            IMG
+          </button>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*"
+            multiple
+            hidden
+            onChange={(e) => {
+              if (e.target.files?.length) onUploadImages(Array.from(e.target.files))
+              e.target.value = '' // 같은 파일 재선택 허용
+            }}
+          />
+        </>
+      )}
     </div>
   )
 }

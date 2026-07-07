@@ -17,7 +17,10 @@ function PostViewer({ meta, content }: PostViewerProps) {
           <TagList tags={meta.tags} />
         </div>
       </header>
-      <MarkdownRenderer content={content} />
+      <MarkdownRenderer
+        content={content}
+        assetBase={`${import.meta.env.BASE_URL}posts/images/${meta.slug}/`}
+      />
     </article>
   )
 }

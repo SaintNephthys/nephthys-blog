@@ -21,6 +21,10 @@ export const CONTENT_DIR = path.join(ROOT, 'content', 'posts')
 // draft 게시물 저장소 — gitignore되어 어떤 커밋 경로로도 저장소에 올라가지 않는다
 export const DRAFTS_DIR = path.join(ROOT, 'content', 'drafts')
 export const CATEGORIES_FILE = path.join(ROOT, 'content', 'categories.json')
+// 게시물별 이미지: 공개 글은 content/images/<slug>/(커밋 대상),
+// 초안은 content/drafts/images/<slug>/(drafts 전체가 gitignore라 함께 격리)
+export const IMAGES_DIR = path.join(ROOT, 'content', 'images')
+export const DRAFT_IMAGES_DIR = path.join(ROOT, 'content', 'drafts', 'images')
 const OUT_DIR = path.join(ROOT, 'public', 'posts')
 
 export function readCategoryNames() {
@@ -92,7 +96,8 @@ export function listDraftFiles() {
 }
 
 export function buildPosts() {
-  fs.rmSync(OUT_DIR, { recursive: true, force: true })
+  // maxRetries: 직전 빌드가 막 쓴 디렉터리를 지울 때 발생하는 일시적 ENOTEMPTY(macOS) 회피
+  fs.rmSync(OUT_DIR, { recursive: true, force: true, maxRetries: 3 })
   fs.mkdirSync(OUT_DIR, { recursive: true })
 
   const posts = []
@@ -114,6 +119,21 @@ export function buildPosts() {
       summary: post.summary,
       searchText: extractSearchText(post.content),
     })
+  }
+
+  // 공개 게시물의 이미지만 산출물로 복사 — 초안 이미지(content/drafts/images)는
+  // 어떤 환경에서도 public/에 들어가지 않는다 (dev 프리뷰는 에디터 플러그인이 직접 서빙)
+  if (fs.existsSync(IMAGES_DIR)) {
+    const publishedSlugs = new Set(posts.map((p) => p.slug))
+    for (const slug of fs.readdirSync(IMAGES_DIR)) {
+      const src = path.join(IMAGES_DIR, slug)
+      if (!fs.statSync(src).isDirectory()) continue
+      if (!publishedSlugs.has(slug)) {
+        console.warn(`[build-posts] 공개 게시물이 없는 이미지 디렉터리 제외: content/images/${slug}`)
+        continue
+      }
+      fs.cpSync(src, path.join(OUT_DIR, 'images', slug), { recursive: true })
+    }
   }
 
   posts.sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : 0))
