@@ -80,18 +80,57 @@ interface MarkdownRendererProps {
 /** 외부 URL(스킴)·절대 경로·data URI가 아닌, 게시물 디렉터리 기준 상대 참조인지 판별 */
 const RELATIVE_SRC_RE = /^(?![a-z][a-z0-9+.-]*:|\/)/i
 
+/**
+ * alt 끝의 `|NN`(1~100)을 상대 크기 지시자로 해석 — `![설명|50](img)` → 기본 표시 크기의 50%.
+ * 100이거나 지시자가 없으면 기본 표시 크기(scale 없음). 범위 밖이면 alt 그대로 둔다.
+ */
+function parseAltSize(alt: string | undefined): { alt: string; scale?: number } {
+  const m = /^(.*)\|(\d{1,3})\s*$/.exec(alt ?? '')
+  if (m) {
+    const n = Number(m[2])
+    if (n >= 1 && n <= 100) {
+      return { alt: m[1].trim(), scale: n < 100 ? n : undefined }
+    }
+  }
+  return { alt: alt ?? '' }
+}
+
 /** 게시물 뷰어와 에디터 프리뷰가 공용으로 사용하는 Markdown 렌더러 */
 function MarkdownRenderer({ content, assetBase }: MarkdownRendererProps) {
   const components = useMemo<Components>(
     () => ({
       pre: CodeBlock,
-      img: ({ node, src, ...rest }) => {
+      img: ({ node, src, alt, ...rest }) => {
         void node
         const resolved =
           assetBase && typeof src === 'string' && RELATIVE_SRC_RE.test(src)
             ? assetBase + src
             : src
-        return <img {...rest} src={resolved} loading="lazy" />
+        const { alt: cleanAlt, scale } = parseAltSize(alt)
+        return (
+          <img
+            {...rest}
+            src={resolved}
+            alt={cleanAlt}
+            loading="lazy"
+            // 기본 표시 크기(= min(원본, 컨테이너 폭)) 기준 상대 크기.
+            // min(원본×N%, 컨테이너×N%)로 두 경우를 모두 처리하며, %항 덕분에
+            // 창 크기 변화에도 비율이 유지된다. naturalWidth는 로드 후에만 알 수
+            // 있어 DOM에 직접 적용하고, scale이 없으면 이전 값을 비워
+            // 지시자 제거·수정에도 반영되게 한다.
+            ref={(img) => {
+              if (!img) return
+              const apply = () => {
+                img.style.width =
+                  scale && img.naturalWidth
+                    ? `min(${Math.round((img.naturalWidth * scale) / 100)}px, ${scale}%)`
+                    : ''
+              }
+              if (img.complete) apply()
+              else img.addEventListener('load', apply, { once: true })
+            }}
+          />
+        )
       },
     }),
     [assetBase],

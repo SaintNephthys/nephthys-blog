@@ -28,7 +28,8 @@ MarkdownRenderer와 동일한 플러그인 체인을 node에서 돌려 스모크
   - `public/posts/<slug>.md` — 본문 (frontmatter 제거)
   - `content/posts/`에 `draft: true` 파일이 남아 있어도 산출물에서 방어적으로 제외된다
 - **게시물 이미지는 md와 동일한 격리 시맨틱** — 공개 글은 `content/images/<slug>/`(커밋 대상), 초안은 `content/drafts/images/<slug>/`(drafts 전체가 gitignore). PUBLISH 토글·서버 시작 방어 로직(`relocateDrafts`)이 md와 함께 이미지 디렉터리도 이동시키고, 게시물 삭제 시 함께 삭제된다. `buildPosts()`는 공개 글 이미지만 `public/posts/images/<slug>/`로 복사한다(초안 이미지는 어떤 환경에서도 산출물에 포함되지 않음 — dev 프리뷰는 에디터 플러그인이 content에서 직접 서빙).
-- 본문 이미지 참조는 파일명만 쓴다: `![설명](name.webp)`. `MarkdownRenderer`의 `assetBase` prop이 상대 참조를 `${BASE_URL}posts/images/<slug>/…`로 해석한다(외부 URL·절대 경로는 그대로).
+- 본문 이미지 참조는 파일명만 쓴다: `![설명](name.webp)`. `MarkdownRenderer`의 `assetBase` prop이 상대 참조를 `${BASE_URL}posts/images/<slug>/…`로 해석한다(외부 URL·절대 경로는 그대로). alt 끝에 `|NN`(1~100)을 붙이면 **기본 표시 크기**(= min(원본, 컨테이너 폭)) 대비 상대 크기로 표시된다: `![설명|50](name.webp)` → 기본 표시 크기의 50% (100 또는 생략 = 기본 표시 크기). 구현은 `width: min(원본×N% px, N%)`.
+- **미참조 이미지 자동 정리** — SAVE/PUBLISH(`savePost`)·DEPLOY(`deploy`) 시 본문(마크다운 `![]()` + raw HTML `<img src>`)이 참조하지 않는 이미지를 게시물 디렉터리에서 삭제한다(`pruneImages`). DELETE는 디렉터리째 삭제. 업로드 후 참조를 지우고 저장하면 파일도 함께 정리된다.
 - `public/posts/`는 자동 생성물이므로 gitignore됨. dev 서버 시작 시와 md 변경 시 자동 재생성(연속 fs 이벤트는 디바운스).
 - 클라이언트(`src/lib/posts.ts`)는 초기에 index.json만 fetch하고 본문은 열람 시 개별 fetch. 검색도 index.json의 `searchText`만 사용(검색 범위: 태그·제목·헤더·구분점).
 - index.json은 모듈 캐시 + 구독 구조 — 에디터에서 게시물/카테고리 변경 시 `invalidatePostIndex()`가 캐시를 비우고 `usePostIndex` 사용처(사이드바 카테고리 등)를 새로고침 없이 재조회시킨다.

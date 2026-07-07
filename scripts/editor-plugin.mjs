@@ -135,6 +135,36 @@ function alignImageDir(slug, isDraft) {
   moveImageDir(isDraft ? dirs.published : dirs.draft, isDraft ? dirs.draft : dirs.published)
 }
 
+/** 본문이 참조하는 로컬 이미지 파일명 집합 — 마크다운 ![]() 및 raw HTML <img src> */
+function referencedImages(content) {
+  const names = new Set()
+  const add = (src) => {
+    if (!src || /^[a-z][a-z0-9+.-]*:|^\//i.test(src)) return // 외부 URL·절대 경로는 로컬 파일이 아님
+    try {
+      names.add(decodeURIComponent(src))
+    } catch {
+      names.add(src)
+    }
+  }
+  for (const m of content.matchAll(/!\[[^\]]*\]\(\s*<?([^\s)>]+)>?[^)]*\)/g)) add(m[1])
+  for (const m of content.matchAll(/<img\b[^>]*\bsrc\s*=\s*["']([^"']+)["']/gi)) add(m[1])
+  return names
+}
+
+/** 본문이 참조하지 않는 이미지를 삭제 (SAVE/PUBLISH/DEPLOY 시 호출 — 고아 이미지 방지) */
+function pruneImages(slug, content) {
+  const refs = referencedImages(content)
+  for (const dir of Object.values(imageDirs(slug))) {
+    if (!fs.existsSync(dir)) continue
+    for (const file of fs.readdirSync(dir)) {
+      if (refs.has(file)) continue
+      fs.rmSync(path.join(dir, file))
+      console.log(`[editor] 미참조 이미지 삭제: ${path.relative(ROOT, path.join(dir, file))}`)
+    }
+    if (fs.readdirSync(dir).length === 0) fs.rmSync(dir, { recursive: true, force: true })
+  }
+}
+
 function readRawBody(req, limit) {
   return new Promise((resolve, reject) => {
     const chunks = []
@@ -241,7 +271,8 @@ function savePost(slug, body) {
   if (category) data.category = category
   const isDraft = body.draft === true
   if (isDraft) data.draft = true
-  const md = matter.stringify(String(body.content ?? ''), data)
+  const content = String(body.content ?? '')
+  const md = matter.stringify(content, data)
   const paths = postPaths(slug)
   const target = isDraft ? paths.draft : paths.published
   const other = isDraft ? paths.published : paths.draft
@@ -251,6 +282,8 @@ function savePost(slug, body) {
   if (fs.existsSync(other)) fs.rmSync(other)
   // 이미지 디렉터리도 md와 같은 편(커밋 대상/격리 영역)에 있도록 이동
   alignImageDir(slug, isDraft)
+  // 본문에서 더 이상 참조하지 않는 이미지 정리
+  pruneImages(slug, content)
   buildPosts()
   syncCategories()
 }
@@ -399,6 +432,11 @@ async function deployPreview() {
 
 async function deploy(message) {
   const log = []
+  // 커밋 전에 공개 게시물의 미참조 이미지를 정리 (저장소에 고아 이미지가 올라가지 않도록)
+  for (const file of listPostFiles()) {
+    const post = parsePostFile(file)
+    pruneImages(post.slug, post.content)
+  }
   buildPosts()
   // categories.json도 게시물과 함께 커밋되도록 content 전체를 스테이징
   await git('add', '-A', '--', 'content')
