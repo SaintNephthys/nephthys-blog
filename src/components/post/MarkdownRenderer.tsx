@@ -1,9 +1,12 @@
 import {
   isValidElement,
+  lazy,
+  Suspense,
   useMemo,
   useRef,
   useState,
   type ComponentPropsWithoutRef,
+  type ReactNode,
 } from 'react'
 import ReactMarkdown, { type Components, type ExtraProps } from 'react-markdown'
 import remarkGfm from 'remark-gfm'
@@ -15,7 +18,18 @@ import rehypeSlug from 'rehype-slug'
 import type { ElementContent } from 'hast'
 import 'katex/dist/katex.min.css'
 
+// 함수 그래프는 d3 청크가 초기 번들·PostPage 청크에 섞이지 않도록 lazy —
+// graph 펜스가 있는 게시물에서만 로드된다 (KaTeX와 동일한 격리 원칙)
+const FunctionGraph = lazy(() => import('./FunctionGraph'))
+
 type PreProps = ComponentPropsWithoutRef<'pre'> & ExtraProps
+
+/** 코드 펜스의 언어를 <code class="language-…">에서 추출 */
+function fenceLang(children: ReactNode): string {
+  if (!isValidElement(children)) return ''
+  const className = (children.props as { className?: string }).className ?? ''
+  return /language-([\w+#-]+)/.exec(className)?.[1] ?? ''
+}
 
 function extractText(nodes: ElementContent[] | undefined): string {
   if (!nodes) return ''
@@ -34,12 +48,7 @@ function CodeBlock({ node, children, ...rest }: PreProps) {
   const preRef = useRef<HTMLPreElement>(null)
   const [copied, setCopied] = useState(false)
 
-  let lang = ''
-  if (isValidElement(children)) {
-    const className = (children.props as { className?: string }).className ?? ''
-    const match = /language-([\w+#-]+)/.exec(className)
-    if (match) lang = match[1]
-  }
+  const lang = fenceLang(children)
 
   const lineCount = Math.max(
     1,
@@ -71,6 +80,24 @@ function CodeBlock({ node, children, ...rest }: PreProps) {
   )
 }
 
+/**
+ * pre 오버라이드 — ```graph 펜스는 인터랙티브 함수 그래프로,
+ * 그 외에는 기존 CodeBlock으로 렌더한다.
+ */
+function PreOrGraph(props: PreProps) {
+  if (fenceLang(props.children) === 'graph') {
+    const spec = extractText(props.node?.children).replace(/\n$/, '')
+    return (
+      <Suspense
+        fallback={<div className="fngraph fngraph--loading">GRAPH LOADING…</div>}
+      >
+        <FunctionGraph spec={spec} />
+      </Suspense>
+    )
+  }
+  return <CodeBlock {...props} />
+}
+
 interface MarkdownRendererProps {
   content: string
   /** 상대 경로 이미지의 해석 기준 URL — 게시물 이미지 디렉터리 (없으면 src를 그대로 둔다) */
@@ -99,7 +126,7 @@ function parseAltSize(alt: string | undefined): { alt: string; scale?: number } 
 function MarkdownRenderer({ content, assetBase }: MarkdownRendererProps) {
   const components = useMemo<Components>(
     () => ({
-      pre: CodeBlock,
+      pre: PreOrGraph,
       img: ({ node, src, alt, ...rest }) => {
         void node
         const resolved =
@@ -140,7 +167,13 @@ function MarkdownRenderer({ content, assetBase }: MarkdownRendererProps) {
     <div className="markdown">
       <ReactMarkdown
         remarkPlugins={[remarkGfm, remarkMath]}
-        rehypePlugins={[rehypeRaw, rehypeKatex, rehypeHighlight, rehypeSlug]}
+        rehypePlugins={[
+          rehypeRaw,
+          rehypeKatex,
+          // graph 펜스는 스펙 텍스트이므로 하이라이팅 대상에서 제외
+          [rehypeHighlight, { plainText: ['graph'] }],
+          rehypeSlug,
+        ]}
         components={components}
       >
         {content}

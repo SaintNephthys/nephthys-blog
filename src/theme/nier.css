@@ -1510,3 +1510,212 @@ a {
     max-height: 200px;
   }
 }
+
+/* ============================================================
+   Function graph (```graph 펜스 → FunctionGraph)
+   축·라벨은 코드 블럭 라벨과 동일한 mono·rem 규격, 색은 --nier-* 변수만 사용 */
+
+.markdown .fngraph {
+  margin: 1.2em 0;
+  background: var(--nier-panel);
+  border: 1px solid var(--nier-line);
+  box-shadow: 3px 3px 0 rgba(69, 65, 56, 0.25);
+}
+
+.fngraph__title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  background: var(--nier-dark);
+  color: var(--nier-text-inv);
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  letter-spacing: 0.08em;
+}
+
+.fngraph__title::before {
+  content: '';
+  flex: none;
+  width: 6px;
+  height: 6px;
+  background: var(--nier-text-inv);
+}
+
+.fngraph__plot-wrap {
+  padding: 10px 12px 0;
+  min-height: 300px;
+}
+
+.fngraph__svg {
+  display: block;
+  touch-action: none;
+}
+
+.fngraph__grid {
+  stroke: var(--nier-line-soft);
+  stroke-opacity: 0.45;
+}
+
+.fngraph__grid--zero {
+  stroke: var(--nier-line);
+  stroke-opacity: 0.9;
+}
+
+.fngraph__frame {
+  fill: none;
+  stroke: var(--nier-line);
+}
+
+.fngraph__tick {
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+  fill: var(--nier-text-dim);
+}
+
+.fngraph__curve {
+  fill: none;
+  stroke: var(--nier-dark);
+  stroke-width: 2;
+}
+
+.fngraph__cross {
+  stroke: var(--nier-alert);
+  stroke-dasharray: 4 3;
+}
+
+.fngraph__dot {
+  fill: var(--nier-alert);
+}
+
+/* 적분 구간 — 곡선과 y=0 사이 음영 + 경계 세로선 */
+.fngraph__area {
+  fill: var(--nier-accent);
+  fill-opacity: 0.5;
+}
+
+.fngraph__bound {
+  stroke: var(--nier-alert);
+  stroke-opacity: 0.7;
+}
+
+.fngraph__readout--integral {
+  padding-top: 0;
+  color: var(--nier-text);
+}
+
+.fngraph__readout {
+  padding: 6px 12px;
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  color: var(--nier-text-dim);
+  white-space: pre;
+}
+
+.fngraph__params {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 2px 12px 12px;
+}
+
+.fngraph__param {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.fngraph__param-name {
+  flex: none;
+  min-width: 2em;
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  color: var(--nier-text);
+}
+
+.fngraph__param-value {
+  flex: none;
+  min-width: 4.5em;
+  text-align: right;
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  color: var(--nier-text-dim);
+}
+
+/* NieR 설정 화면풍 슬라이더 — 얇은 트랙 + 각진 사각 핸들 */
+.fngraph__param input[type='range'] {
+  flex: 1;
+  appearance: none;
+  -webkit-appearance: none;
+  height: 16px;
+  margin: 0;
+  background: transparent;
+  cursor: pointer;
+}
+
+.fngraph__param input[type='range']::-webkit-slider-runnable-track {
+  height: 2px;
+  background: var(--nier-line);
+}
+
+.fngraph__param input[type='range']::-webkit-slider-thumb {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 9px;
+  height: 16px;
+  margin-top: -7px;
+  border: none;
+  border-radius: 0;
+  background: var(--nier-dark);
+}
+
+.fngraph__param input[type='range']::-moz-range-track {
+  height: 2px;
+  background: var(--nier-line);
+}
+
+.fngraph__param input[type='range']::-moz-range-thumb {
+  width: 9px;
+  height: 16px;
+  border: none;
+  border-radius: 0;
+  background: var(--nier-dark);
+}
+
+.fngraph__param input[type='range']:active::-webkit-slider-thumb,
+.fngraph__param input[type='range']:hover::-webkit-slider-thumb {
+  background: var(--nier-alert);
+}
+
+.fngraph__param input[type='range']:active::-moz-range-thumb,
+.fngraph__param input[type='range']:hover::-moz-range-thumb {
+  background: var(--nier-alert);
+}
+
+.fngraph--error {
+  border-color: var(--nier-alert);
+}
+
+.fngraph--error .fngraph__title {
+  background: var(--nier-alert);
+}
+
+.fngraph__error-msg {
+  padding: 10px 12px;
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  color: var(--nier-alert);
+  white-space: pre-wrap;
+}
+
+/* lazy 청크 로딩 중 자리 확보 — 레이아웃 시프트 방지 */
+.fngraph--loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 360px;
+  border-style: dashed;
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  color: var(--nier-text-dim);
+}

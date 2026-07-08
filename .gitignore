@@ -43,6 +43,9 @@ yarn-error.log*
 .pnpm-debug.log*
 reference-files/
 
+# 에이전트용 로컬 개발 노트 — 저장소에 올리지 않는다
+docs/function-graph-devnotes.md
+
 # OS 임시 파일
 .DS_Store
 Thumbs.db
