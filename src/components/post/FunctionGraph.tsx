@@ -205,9 +205,9 @@ function buildPlot(
     .y((d) => yScale(d[1]))
     .defined((d) => Number.isFinite(d[1]))
 
-  // 적분 구간 음영 + 수치 적분값
+  // 적분 구간 음영 + 수치 적분값 — display.integral = false면 계산째 생략
   let integral: IntegralData | null = null
-  if (plot.integral) {
+  if (plot.integral && plot.display.integral) {
     const lo = plot.integral.from(values)
     const hi = plot.integral.to(values)
     if (Number.isFinite(lo) && Number.isFinite(hi)) {
@@ -449,38 +449,61 @@ function CircleSubPlot({
             />
             {ok && (
               <>
-                <line
-                  className="fngraph__cross"
-                  x1={data.xScale(px)}
-                  y1={data.yScale(py)}
-                  x2={data.xScale(px)}
-                  y2={data.yScale(0)}
-                />
-                <line
-                  className="fngraph__cross"
-                  x1={data.xScale(px)}
-                  y1={data.yScale(py)}
-                  x2={data.xScale(0)}
-                  y2={data.yScale(py)}
-                />
-                <line
-                  className="fngraph__radius"
-                  x1={data.xScale(0)}
-                  y1={data.yScale(0)}
-                  x2={data.xScale(px)}
-                  y2={data.yScale(py)}
-                />
-                <circle className="fngraph__dot" cx={data.xScale(px)} cy={data.yScale(py)} r={4} />
+                {/* 끝점 → x축 사영(끝점의 x좌표 = cos θ) */}
+                {plot.display.cos && (
+                  <line
+                    className="fngraph__cross"
+                    x1={data.xScale(px)}
+                    y1={data.yScale(py)}
+                    x2={data.xScale(px)}
+                    y2={data.yScale(0)}
+                  />
+                )}
+                {/* 끝점 → y축 사영(끝점의 y좌표 = sin θ) */}
+                {plot.display.sin && (
+                  <line
+                    className="fngraph__cross"
+                    x1={data.xScale(px)}
+                    y1={data.yScale(py)}
+                    x2={data.xScale(0)}
+                    y2={data.yScale(py)}
+                  />
+                )}
+                {plot.display.theta && (
+                  <>
+                    <line
+                      className="fngraph__radius"
+                      x1={data.xScale(0)}
+                      y1={data.yScale(0)}
+                      x2={data.xScale(px)}
+                      y2={data.yScale(py)}
+                    />
+                    <circle
+                      className="fngraph__dot"
+                      cx={data.xScale(px)}
+                      cy={data.yScale(py)}
+                      r={4}
+                    />
+                  </>
+                )}
               </>
             )}
           </g>
         </svg>
       )}
-      <div className="fngraph__readout">
-        {ok
-          ? `θ = ${fmt(deg)}°    cos θ = ${fmt(px)}    sin θ = ${fmt(py)}`
-          : 'θ = —  (angle 식이 유한한 값이 아닙니다)'}
-      </div>
+      {(plot.display.theta || plot.display.cos || plot.display.sin) && (
+        <div className="fngraph__readouts">
+          {plot.display.theta && (
+            <div className="fngraph__readout">{`θ = ${ok ? `${fmt(deg)}°` : '—'}`}</div>
+          )}
+          {plot.display.cos && (
+            <div className="fngraph__readout">{`cos θ = ${ok ? fmt(px) : '—'}`}</div>
+          )}
+          {plot.display.sin && (
+            <div className="fngraph__readout">{`sin θ = ${ok ? fmt(py) : '—'}`}</div>
+          )}
+        </div>
+      )}
     </div>
   )
 }
@@ -602,7 +625,7 @@ function FnSubPlot({
                     />
                   ))}
                 <path className="fngraph__curve" d={data.path} />
-                {hoverX !== null && (
+                {plot.display.x && hoverX !== null && (
                   <line
                     className="fngraph__cross"
                     x1={data.xScale(hoverX)}
@@ -611,27 +634,39 @@ function FnSubPlot({
                     y2={data.innerH}
                   />
                 )}
-                {hoverX !== null && hoverY !== null && Number.isFinite(hoverY) && (
-                  <circle
-                    className="fngraph__dot"
-                    cx={data.xScale(hoverX)}
-                    cy={data.yScale(hoverY)}
-                    r={3.5}
-                  />
-                )}
+                {plot.display.fx &&
+                  hoverX !== null &&
+                  hoverY !== null &&
+                  Number.isFinite(hoverY) && (
+                    <circle
+                      className="fngraph__dot"
+                      cx={data.xScale(hoverX)}
+                      cy={data.yScale(hoverY)}
+                      r={3.5}
+                    />
+                  )}
               </g>
             )}
           </g>
         </svg>
       )}
-      <div className="fngraph__readout">
-        {hoverX !== null
-          ? `x = ${fmt(hoverX)}    f(x) = ${fmt(hoverY ?? NaN)}`
-          : 'x = —    f(x) = —  (그래프 위로 포인터를 올려 확인)'}
-      </div>
-      {data?.integral && (
-        <div className="fngraph__readout fngraph__readout--integral">
-          {`∫ f dx  [${fmt(data.integral.lo)} → ${fmt(data.integral.hi)}]  =  ${fmt(data.integral.value)}`}
+      {(plot.display.x || plot.display.fx || (plot.display.integral && data?.integral)) && (
+        <div className="fngraph__readouts">
+          {plot.display.x && (
+            <div className="fngraph__readout">
+              {`x = ${hoverX !== null ? fmt(hoverX) : '—'}`}
+            </div>
+          )}
+          {plot.display.fx && (
+            <div className="fngraph__readout">
+              {`f(x) = ${hoverX !== null ? fmt(hoverY ?? NaN) : '—'}`}
+            </div>
+          )}
+          {plot.display.integral && data?.integral && (
+            <div className="fngraph__readout fngraph__readout--integral">
+              {`∫ f dx  [${fmt(data.integral.lo)} → ${fmt(data.integral.hi)}]  =  ${fmt(data.integral.value)}`}
+            </div>
+          )}
         </div>
       )}
     </div>

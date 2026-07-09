@@ -1737,14 +1737,17 @@ a {
 }
 
 .fngraph__readout--integral {
-  padding-top: 0;
   color: var(--nier-text);
 }
 
-/* readout은 서브플롯(구역) 소속 — 좌우 여백은 plot-wrap/cell 패딩이 담당.
-   white-space: pre가 최소 폭을 강제하지 않도록 넘치는 텍스트는 말줄임 처리 */
-.fngraph__readout {
+/* readout은 서브플롯(구역) 소속 — 항목당 한 줄(좁은 셀에서도 잘리지 않게).
+   좌우 여백은 plot-wrap/cell 패딩이 담당 */
+.fngraph__readouts {
   padding: 6px 0 0;
+}
+
+.fngraph__readout {
+  padding: 1px 0 0;
   font-family: var(--font-mono);
   font-size: 0.75rem;
   color: var(--nier-text-dim);

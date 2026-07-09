@@ -1,10 +1,12 @@
 ---
 title: 인터랙티브 함수 그래프 테스트
-date: 2026-07-08
-category: Dev
-tags: [d3, graph, test]
+date: '2026-07-08'
+tags:
+  - d3
+  - graph
+  - test
 summary: graph 코드 펜스(TOML 스펙)로 렌더되는 D3 기반 함수 그래프와 파라미터 슬라이더 동작 확인.
-draft: false
+category: Dev
 ---
 
 # 감쇠 사인파
@@ -78,11 +80,15 @@ t = { default = 45, min = 0, max = 360, step = 1 }
 kind = "circle"
 title = "단위원 — 반지름의 회전 (θ = t°)"
 angle = "t * pi / 180"
+display.theta = true
+display.cos = true
+display.sin = true
 
 [[plot]]
 title = "sin(x°) — 단위원의 y좌표"
 fn = "sin(x * pi / 180)"
 integral = [0, "t"]
+display.integral = false
 
 [[plot]]
 title = "cos(x°) — 단위원의 x좌표"
