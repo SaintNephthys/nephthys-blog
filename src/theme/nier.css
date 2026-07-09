@@ -175,11 +175,18 @@ a {
 
 .top-bar__menu {
   display: none;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  padding: 0;
   background: none;
   border: 1px solid var(--nier-text-inv);
   color: var(--nier-text-inv);
   font-family: var(--font-mono);
-  padding: 4px 10px;
+  /* 아이콘 글리프 = 버튼(2rem)의 70% */
+  font-size: 1.4rem;
+  line-height: 1;
   cursor: pointer;
 }
 
@@ -253,13 +260,18 @@ a {
 .top-bar__search-toggle {
   display: none;
   flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  padding: 0;
   background: none;
   border: 1px solid var(--nier-text-inv);
   color: var(--nier-text-inv);
   font-family: var(--font-mono);
-  font-size: 1rem;
+  /* 아이콘 글리프 = 버튼(2rem)의 70% */
+  font-size: 1.4rem;
   line-height: 1;
-  padding: 5px 10px;
   cursor: pointer;
 }
 
@@ -1538,7 +1550,7 @@ a {
 
 @media (max-width: 768px) {
   .top-bar__menu {
-    display: block;
+    display: flex;
   }
 
   /* 메뉴 버튼이 등장하는 모바일에서는 로고 마크를 숨겨 공간 확보,
@@ -1558,7 +1570,7 @@ a {
   }
 
   .top-bar__search-toggle {
-    display: block;
+    display: flex;
   }
 
   .side-bar {
