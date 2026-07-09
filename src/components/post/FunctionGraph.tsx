@@ -1,7 +1,7 @@
 import { useEffect, useId, useMemo, useRef, useState } from 'react'
 import { scaleLinear } from 'd3-scale'
 import { area, line } from 'd3-shape'
-import { parseGraphSpec, type GraphSpec } from '../../lib/graphSpec'
+import { parseGraphSpec, type GraphParam, type GraphSpec } from '../../lib/graphSpec'
 import type { EvalFn } from '../../lib/mathExpr'
 
 /**
@@ -243,6 +243,65 @@ function buildPlot(
   }
 }
 
+interface ParamValueInputProps {
+  param: GraphParam
+  value: number
+  onCommit: (v: number) => void
+}
+
+/**
+ * 파라미터 값 직접 입력 박스 — Enter/blur로 확정.
+ * draft가 null이면 비편집 상태로, 슬라이더로 바뀌는 외부 값을 그대로 표시한다.
+ * 범위 밖·비숫자 입력은 입력 전 값으로 되돌리고 하단에 허용 범위 안내를 띄운다
+ * (안내는 다시 타이핑하거나 유효한 값을 확정하면 사라진다).
+ */
+function ParamValueInput({ param, value, onCommit }: ParamValueInputProps) {
+  const [draft, setDraft] = useState<string | null>(null)
+  const [invalid, setInvalid] = useState(false)
+
+  const commit = () => {
+    if (draft === null) return
+    const n = Number(draft.trim())
+    const ok =
+      draft.trim() !== '' && Number.isFinite(n) && n >= param.min && n <= param.max
+    if (ok) onCommit(n)
+    setDraft(null) // 유효하면 확정값이, 아니면 입력 전 값이 표시된다
+    setInvalid(!ok)
+  }
+
+  return (
+    <span className="fngraph__param-value-box">
+      <input
+        type="text"
+        inputMode="decimal"
+        className="fngraph__param-value"
+        aria-label={`${param.name} 값 직접 입력`}
+        aria-invalid={invalid}
+        value={draft ?? fmt(value)}
+        onFocus={(e) => e.currentTarget.select()}
+        onChange={(e) => {
+          setDraft(e.target.value)
+          setInvalid(false)
+        }}
+        onBlur={commit}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') {
+            e.currentTarget.blur()
+          } else if (e.key === 'Escape') {
+            setDraft(null)
+            setInvalid(false)
+          }
+        }}
+      />
+      {invalid && (
+        <span className="fngraph__param-error">
+          {`${fmt(param.min)} ~ ${fmt(param.max)} 사이의 숫자를 입력하세요`}
+        </span>
+      )}
+    </span>
+  )
+}
+
 interface FunctionGraphProps {
   /** 코드 펜스 본문(스펙 텍스트) */
   spec: string
@@ -445,7 +504,7 @@ function FunctionGraph({ spec: specText }: FunctionGraphProps) {
       {spec.params.length > 0 && (
         <div className="fngraph__params">
           {spec.params.map((p) => (
-            <label className="fngraph__param" key={p.name}>
+            <div className="fngraph__param" key={p.name}>
               <span className="fngraph__param-name">{p.name}</span>
               <input
                 type="range"
@@ -455,8 +514,12 @@ function FunctionGraph({ spec: specText }: FunctionGraphProps) {
                 value={values[p.name]}
                 onChange={(e) => setValue(p.name, Number(e.target.value))}
               />
-              <span className="fngraph__param-value">{fmt(values[p.name])}</span>
-            </label>
+              <ParamValueInput
+                param={p}
+                value={values[p.name]}
+                onCommit={(v) => setValue(p.name, v)}
+              />
+            </div>
           ))}
         </div>
       )}

@@ -1633,13 +1633,41 @@ a {
   color: var(--nier-text);
 }
 
-.fngraph__param-value {
+/* 값 직접 입력 박스 + 하단 유효성 안내 */
+.fngraph__param-value-box {
   flex: none;
-  min-width: 4.5em;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+}
+
+.fngraph__param-value {
+  width: 5.5em;
+  padding: 1px 6px;
+  border: 1px solid var(--nier-line);
+  border-radius: 0;
+  background: var(--nier-panel-dim);
   text-align: right;
   font-family: var(--font-mono);
   font-size: 0.75rem;
-  color: var(--nier-text-dim);
+  color: var(--nier-text);
+}
+
+.fngraph__param-value:focus {
+  outline: none;
+  border-color: var(--nier-dark);
+  background: var(--nier-text-inv);
+}
+
+.fngraph__param-value[aria-invalid='true'] {
+  border-color: var(--nier-alert);
+}
+
+.fngraph__param-error {
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+  color: var(--nier-alert);
 }
 
 /* NieR 설정 화면풍 슬라이더 — 얇은 트랙 + 각진 사각 핸들 */
