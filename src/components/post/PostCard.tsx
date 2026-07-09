@@ -15,7 +15,6 @@ function CategoryChip({ category }: { category: string }) {
     <Link
       to={`/category/${encodeURIComponent(category)}`}
       className="tag-chip tag-chip--category"
-      onClick={(e) => e.stopPropagation()}
     >
       ▣ {category}
     </Link>
@@ -24,14 +23,21 @@ function CategoryChip({ category }: { category: string }) {
 
 function PostCard({ post, variant = 'default' }: PostCardProps) {
   return (
-    <Link to={`/post/${post.slug}`} className="post-card">
+    // 중첩 <a>는 HTML 명세 위반(파서가 카드를 쪼갬) — 카드는 div로 두고,
+    // 제목 링크의 ::after 오버레이가 카드 전체 클릭을 담당한다(오버레이 링크 패턴).
+    // 칩 링크들은 z-index로 오버레이 위에 떠서 hover·클릭이 독립 동작한다.
+    <div className="post-card">
       {variant === 'default' && (
         <div className="post-card__meta">
           <span>{post.date}</span>
           <CategoryChip category={post.category} />
         </div>
       )}
-      <h2 className="post-card__title">{post.title}</h2>
+      <h2 className="post-card__title">
+        <Link to={`/post/${post.slug}`} className="post-card__link">
+          {post.title}
+        </Link>
+      </h2>
       {variant === 'search' ? (
         // 검색 결과: 카테고리·태그를 한 줄로, 그 아래 요약
         <>
@@ -47,7 +53,7 @@ function PostCard({ post, variant = 'default' }: PostCardProps) {
           <TagList tags={post.tags} />
         </>
       )}
-    </Link>
+    </div>
   )
 }
 

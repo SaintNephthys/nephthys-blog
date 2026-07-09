@@ -9,12 +9,7 @@ function TagList({ tags }: TagListProps) {
   return (
     <div className="post-card__tags">
       {tags.map((tag) => (
-        <Link
-          key={tag}
-          to={`/tag/${encodeURIComponent(tag)}`}
-          className="tag-chip"
-          onClick={(e) => e.stopPropagation()}
-        >
+        <Link key={tag} to={`/tag/${encodeURIComponent(tag)}`} className="tag-chip">
           #{tag}
         </Link>
       ))}

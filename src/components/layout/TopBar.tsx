@@ -7,12 +7,15 @@ interface TopBarProps {
 
 function TopBar({ onToggleNav }: TopBarProps) {
   const [query, setQuery] = useState('')
+  // 모바일 전용 드롭다운 검색창 — 데스크톱 인라인 검색과 CSS로 상호 배타 노출
+  const [searchOpen, setSearchOpen] = useState(false)
   const navigate = useNavigate()
 
   const submitSearch = (e: React.FormEvent) => {
     e.preventDefault()
     const q = query.trim()
     if (!q) return
+    setSearchOpen(false)
     navigate(`/search/${encodeURIComponent(q)}`)
   }
 
@@ -40,6 +43,27 @@ function TopBar({ onToggleNav }: TopBarProps) {
           aria-label="게시물 검색"
         />
       </form>
+      <button
+        type="button"
+        className="top-bar__search-toggle"
+        onClick={() => setSearchOpen((open) => !open)}
+        aria-label={searchOpen ? '검색 닫기' : '검색 열기'}
+        aria-expanded={searchOpen}
+      >
+        ⌕
+      </button>
+      {searchOpen && (
+        <form className="top-bar__search-drop" onSubmit={submitSearch} role="search">
+          <input
+            type="search"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="SEARCH…"
+            aria-label="게시물 검색"
+            autoFocus
+          />
+        </form>
+      )}
     </header>
   )
 }

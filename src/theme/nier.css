@@ -194,6 +194,8 @@ a {
 }
 
 .top-bar__logo-mark {
+  /* flex 축소 금지 — 공간이 좁을 때 정사각형이 직사각형으로 찌그러지는 것 방지 */
+  flex: none;
   width: 22px;
   height: 22px;
   border: 2px solid var(--nier-text-inv);
@@ -214,7 +216,8 @@ a {
   flex: 1;
 }
 
-.top-bar__search input {
+.top-bar__search input,
+.top-bar__search-drop input {
   width: 230px;
   max-width: 40vw;
   font-family: var(--font-mono);
@@ -229,18 +232,52 @@ a {
   appearance: none;
 }
 
-.top-bar__search input::placeholder {
+.top-bar__search input::placeholder,
+.top-bar__search-drop input::placeholder {
   color: rgba(237, 230, 210, 0.55);
 }
 
-.top-bar__search input:focus {
+.top-bar__search input:focus,
+.top-bar__search-drop input:focus {
   outline: none;
   background: var(--nier-text-inv);
   color: var(--nier-dark);
 }
 
-.top-bar__search input:focus::placeholder {
+.top-bar__search input:focus::placeholder,
+.top-bar__search-drop input:focus::placeholder {
   color: rgba(76, 74, 67, 0.5);
+}
+
+/* 모바일 검색 토글 버튼 — 데스크톱에서는 숨김 */
+.top-bar__search-toggle {
+  display: none;
+  flex: none;
+  background: none;
+  border: 1px solid var(--nier-text-inv);
+  color: var(--nier-text-inv);
+  font-family: var(--font-mono);
+  font-size: 1rem;
+  line-height: 1;
+  padding: 5px 10px;
+  cursor: pointer;
+}
+
+/* 토글로 열리는 상단바 아래 검색창 */
+.top-bar__search-drop {
+  position: fixed;
+  top: var(--topbar-h);
+  left: 0;
+  right: 0;
+  z-index: 19;
+  padding: 10px 16px;
+  background: var(--nier-dark);
+  border-bottom: 2px solid var(--nier-text);
+}
+
+.top-bar__search-drop input {
+  width: 100%;
+  max-width: none;
 }
 
 /* ============================================================
@@ -495,6 +532,9 @@ a {
 
 /* Tag chip */
 .tag-chip {
+  /* 카드 오버레이 링크보다 위 — hover·클릭이 오버레이에 가려지지 않는다 */
+  position: relative;
+  z-index: 1;
   display: inline-block;
   font-family: var(--font-mono);
   font-size: 0.75rem;
@@ -668,8 +708,9 @@ a {
 }
 
 .post-card {
+  /* 오버레이 링크(.post-card__link::after)의 기준 좌표계 */
+  position: relative;
   display: block;
-  text-decoration: none;
   background: var(--nier-panel);
   border: 1px solid var(--nier-line);
   border-left: 5px solid var(--nier-dark);
@@ -710,6 +751,18 @@ a {
   background: var(--nier-dark);
   transform: rotate(45deg);
   flex-shrink: 0;
+}
+
+.post-card__link {
+  color: inherit;
+  text-decoration: none;
+}
+
+/* 카드 전체를 덮는 투명 클릭 면 — 카드 어디를 눌러도 제목 링크 클릭이 된다 */
+.post-card__link::after {
+  content: '';
+  position: absolute;
+  inset: 0;
 }
 
 .post-card:hover .post-card__title::before {
@@ -1485,6 +1538,26 @@ a {
 
 @media (max-width: 768px) {
   .top-bar__menu {
+    display: block;
+  }
+
+  /* 메뉴 버튼이 등장하는 모바일에서는 로고 마크를 숨겨 공간 확보,
+     로고 텍스트가 줄바꿈되어도 상단바 안에 여백을 갖도록 행간 축소 */
+  .top-bar__logo-mark {
+    display: none;
+  }
+
+  .top-bar__logo {
+    line-height: 1.25;
+    font-size: 0.875rem;
+  }
+
+  /* 인라인 검색창 대신 토글 버튼 + 상단바 아래 검색창 */
+  .top-bar__search {
+    display: none;
+  }
+
+  .top-bar__search-toggle {
     display: block;
   }
 
