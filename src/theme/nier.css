@@ -1465,9 +1465,16 @@ a {
    Responsive
    ============================================================ */
 
-@media (max-width: 1200px) {
+/* 에디터 프리뷰 줄바꿈 — 프리뷰 폭이 그래프 등 넓은 콘텐츠를 감당하기 어려운
+   구간에서 보수적으로(1360px) 접는다. 접힌 상태에서는 목록이 폼과 함께
+   스크롤되도록 sticky를 해제한다(프리뷰가 목록에 가려지는 문제 방지) */
+@media (max-width: 1360px) {
   .editor {
     grid-template-columns: 200px minmax(0, 1fr);
+  }
+  .editor__list {
+    position: static;
+    max-height: none;
   }
   .editor__preview {
     grid-column: 1 / -1;
@@ -1520,6 +1527,9 @@ a {
   background: var(--nier-panel);
   border: 1px solid var(--nier-line);
   box-shadow: 3px 3px 0 rgba(69, 65, 56, 0.25);
+  /* 그리드 접힘 판단을 뷰포트가 아닌 실제 컨테이너 폭으로 — 에디터 프리뷰처럼
+     뷰포트는 넓지만 칼럼이 좁은 상황을 처리한다 */
+  container-type: inline-size;
 }
 
 .fngraph__title {
@@ -1570,10 +1580,11 @@ a {
   padding: 6px 8px 4px;
 }
 
-/* 좁은 셀에서 안내 문구가 옆 구역을 침범하지 않도록 말줄임 처리 */
-.fngraph__cell .fngraph__readout {
-  overflow: hidden;
-  text-overflow: ellipsis;
+/* 컨테이너 폭이 좁으면 1열로 — 뷰포트 기준(아래 768px 폴백)과 병행 */
+@container (max-width: 560px) {
+  .fngraph__plot-wrap--grid {
+    grid-template-columns: 1fr;
+  }
 }
 
 @media (max-width: 768px) {
@@ -1645,13 +1656,16 @@ a {
   color: var(--nier-text);
 }
 
-/* readout은 서브플롯(구역) 소속 — 좌우 여백은 plot-wrap/cell 패딩이 담당 */
+/* readout은 서브플롯(구역) 소속 — 좌우 여백은 plot-wrap/cell 패딩이 담당.
+   white-space: pre가 최소 폭을 강제하지 않도록 넘치는 텍스트는 말줄임 처리 */
 .fngraph__readout {
   padding: 6px 0 0;
   font-family: var(--font-mono);
   font-size: 0.75rem;
   color: var(--nier-text-dim);
   white-space: pre;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .fngraph__params {

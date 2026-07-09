@@ -366,15 +366,19 @@ function CircleSubPlot({
     const innerW = width - MARGIN.left - MARGIN.right
     const innerH = height - MARGIN.top - MARGIN.bottom
     if (innerW < 40 || innerH < 40) return null
-    const xHalf = CIRCLE_EXTENT * (innerW / innerH)
+    // px-per-unit은 짧은 축 기준 — 긴 축의 정의역을 늘려 원이 어느 방향으로도
+    // frame을 넘지 않게 한다 (세로 기준 고정 방식은 좁은 셀에서 원이 가로로 넘쳤음)
+    const ppu = Math.min(innerW, innerH) / (2 * CIRCLE_EXTENT)
+    const xHalf = innerW / (2 * ppu)
+    const yHalf = innerH / (2 * ppu)
     const xScale = scaleLinear().domain([-xHalf, xHalf]).range([0, innerW])
-    const yScale = scaleLinear().domain([-CIRCLE_EXTENT, CIRCLE_EXTENT]).range([innerH, 0])
+    const yScale = scaleLinear().domain([-yHalf, yHalf]).range([innerH, 0])
     return {
       innerW,
       innerH,
       xScale,
       yScale,
-      r: xScale(1) - xScale(0),
+      r: ppu,
       xTicks: xScale.ticks(Math.max(3, Math.min(7, Math.floor(innerW / 60)))),
       yTicks: yScale.ticks(5),
       xFormat: xScale.tickFormat(5),
