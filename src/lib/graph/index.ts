@@ -5,7 +5,9 @@
  * 구조: kind 모듈(kinds/*)이 plot 하나의 스키마·파싱을 소유하고, 이 파일은
  * 최상위 오케스트레이션(TOML 파싱·params·[[plot]] 배열·kind 디스패치)만 한다.
  * 새 kind 추가 절차: kinds/<이름>.ts 작성 → 아래 KINDS와 PlotSpec 유니언에 등록
- * → 렌더 컴포넌트를 SubPlot 디스패처에 등록(무거우면 React.lazy).
+ * → 렌더 컴포넌트를 SubPlot 디스패처에 등록(무거우면 React.lazy)
+ * → 에디터 GraphComposer.tsx 카탈로그에 KindDef 등록(타입 강제 없음 — 잊기 쉬움).
+ * 새 plot 키·display 항목도 GraphComposer 카탈로그에 PropDef로 반영할 것.
  *
  * 구 문법(`fn: …`)은 TOML 구문 오류로 시끄럽게 거부된다 — 조용한 오해석 없음.
  * 게시물 md에 영속되는 스키마이므로 확장은 항상 하위 호환으로만 한다.

@@ -1,4 +1,5 @@
-import { useRef, type RefObject } from 'react'
+import { useRef, useState, type RefObject } from 'react'
+import GraphComposer from './GraphComposer'
 
 interface MarkdownToolbarProps {
   textareaRef: RefObject<HTMLTextAreaElement | null>
@@ -29,6 +30,7 @@ function stripFormatting(text: string): string {
  */
 function MarkdownToolbar({ textareaRef, onChange, onUploadImages }: MarkdownToolbarProps) {
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const [graphOpen, setGraphOpen] = useState(false)
 
   /** 변경된 본문을 반영하고 지정 구간을 다시 선택 상태로 만든다 */
   const commit = (next: string, selStart: number, selEnd: number) => {
@@ -70,6 +72,16 @@ function MarkdownToolbar({ textareaRef, onChange, onUploadImages }: MarkdownTool
       .join('\n')
     const next = value.slice(0, lineStart) + replaced + value.slice(lineEnd)
     commit(next, lineStart, lineStart + replaced.length)
+  }
+
+  /** 커서 위치(선택 영역 대체)에 텍스트 삽입 — GRAPH boilerplate용 */
+  const insertAtCursor = (text: string) => {
+    const ta = textareaRef.current
+    if (!ta) return
+    const { selectionStart: start, selectionEnd: end, value } = ta
+    const next = value.slice(0, start) + text + value.slice(end)
+    const pos = start + text.length
+    commit(next, pos, pos)
   }
 
   const clearStyle = () => {
@@ -156,6 +168,16 @@ function MarkdownToolbar({ textareaRef, onChange, onUploadImages }: MarkdownTool
             }}
           />
         </>
+      )}
+      <button
+        type="button"
+        title="그래프 삽입 (```graph boilerplate)"
+        onClick={() => setGraphOpen(true)}
+      >
+        GRAPH
+      </button>
+      {graphOpen && (
+        <GraphComposer onInsert={insertAtCursor} onClose={() => setGraphOpen(false)} />
       )}
     </div>
   )

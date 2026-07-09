@@ -1898,3 +1898,215 @@ a {
   font-size: 0.75rem;
   color: var(--nier-text-dim);
 }
+
+/* ============================================================
+   Graph composer (에디터 GRAPH 버튼 → 그래프 삽입 창) */
+.graphdlg-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(69, 65, 56, 0.35);
+}
+
+.graphdlg {
+  position: relative;
+  width: min(780px, 94vw);
+  background: var(--nier-panel);
+  border: 1px solid var(--nier-line);
+  box-shadow: 6px 6px 0 rgba(69, 65, 56, 0.3);
+}
+
+.graphdlg__title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 12px;
+  background: var(--nier-dark);
+  color: var(--nier-text-inv);
+  font-family: var(--font-mono);
+  font-size: 0.8125rem;
+  letter-spacing: 0.1em;
+}
+
+.graphdlg__close {
+  background: none;
+  border: none;
+  color: var(--nier-text-inv);
+  font-size: 0.875rem;
+  cursor: pointer;
+  padding: 0 2px;
+}
+
+/* |작성 가능 그래프|적용 가능 속성|속성 값| — 각 열 독립 스크롤 */
+.graphdlg__cols {
+  display: grid;
+  grid-template-columns: 1fr 1.1fr 1.2fr;
+}
+
+.graphdlg__col {
+  /* 기본 320px, 낮은 뷰포트(모바일 가로모드)에서는 타이틀바·푸터 몫(7rem)을
+     제외한 높이로 줄여 창이 화면 밖으로 벗어나지 않게 한다 */
+  height: min(320px, calc(94vh - 7rem));
+  height: min(320px, calc(94dvh - 7rem));
+  overflow-y: auto;
+  border-right: 1px solid var(--nier-line-soft);
+  padding: 0 8px 8px;
+}
+
+.graphdlg__col:last-child {
+  border-right: none;
+}
+
+.graphdlg__col h4 {
+  position: sticky;
+  top: 0;
+  margin: 0 -8px 6px;
+  padding: 6px 10px;
+  background: var(--nier-panel-dim);
+  border-bottom: 1px solid var(--nier-line-soft);
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+  letter-spacing: 0.1em;
+  color: var(--nier-text-dim);
+}
+
+.graphdlg__item {
+  display: block;
+  width: 100%;
+  margin: 0 0 4px;
+  padding: 6px 8px;
+  background: none;
+  border: 1px solid var(--nier-line-soft);
+  text-align: left;
+  cursor: pointer;
+  color: var(--nier-text);
+}
+
+.graphdlg__item strong {
+  display: block;
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  letter-spacing: 0.05em;
+}
+
+.graphdlg__item span {
+  display: block;
+  font-size: 0.6875rem;
+  color: var(--nier-text-dim);
+}
+
+.graphdlg__item:hover {
+  background: var(--nier-panel-dim);
+}
+
+/* 선택·적용 표시 */
+.graphdlg__item--on {
+  border-color: var(--nier-dark);
+  background: var(--nier-bg);
+}
+
+.graphdlg__badge {
+  margin-left: 6px;
+  padding: 0 4px;
+  background: var(--nier-alert);
+  color: var(--nier-text-inv);
+  font-style: normal;
+  font-size: 0.625rem;
+  letter-spacing: 0.1em;
+}
+
+.graphdlg__empty {
+  margin: 8px 2px;
+  font-size: 0.75rem;
+  color: var(--nier-text-dim);
+}
+
+.graphdlg__fieldset {
+  margin: 0 0 8px;
+  padding: 4px 8px 8px;
+  border: 1px solid var(--nier-line-soft);
+}
+
+.graphdlg__fieldset legend {
+  padding: 0 4px;
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+  letter-spacing: 0.05em;
+  color: var(--nier-text-dim);
+}
+
+.graphdlg__field {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.graphdlg__field span {
+  flex: none;
+  width: 3.5em;
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+  color: var(--nier-text);
+}
+
+.graphdlg__field input,
+.graphdlg__field select {
+  flex: 1;
+  min-width: 0;
+  padding: 2px 6px;
+  border: 1px solid var(--nier-line);
+  border-radius: 0;
+  background: var(--nier-panel-dim);
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  color: var(--nier-text);
+}
+
+.graphdlg__field input:focus,
+.graphdlg__field select:focus {
+  outline: none;
+  border-color: var(--nier-dark);
+  background: var(--nier-text-inv);
+}
+
+.graphdlg__hint {
+  margin: 6px 0 0;
+  font-size: 0.625rem;
+  color: var(--nier-alert);
+}
+
+.graphdlg__footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 10px 12px;
+  border-top: 1px solid var(--nier-line);
+}
+
+/* 그래프 미선택 알림 모달 */
+.graphdlg__alert-backdrop {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(69, 65, 56, 0.35);
+}
+
+.graphdlg__alert {
+  padding: 16px 20px;
+  background: var(--nier-panel);
+  border: 1px solid var(--nier-dark);
+  box-shadow: 4px 4px 0 rgba(69, 65, 56, 0.3);
+  text-align: center;
+}
+
+.graphdlg__alert p {
+  margin: 0 0 10px;
+  font-size: 0.875rem;
+}
