@@ -58,3 +58,34 @@ t = { default = 1, min = -3, max = 3, step = 0.05 }
 ```graph
 fn = "x^2 * sin(x) / 10"
 ```
+
+# 단위원의 각도와 sin·cos
+
+1번 칸의 단위원 위 반지름이 각도 `t`(도)를 따라 회전한다. 반지름 끝점의
+y좌표·x좌표가 곧 2·3번 칸의 sin·cos 곡선 값이며(점선 사영으로 표시),
+세 구역이 공통 param `t`에 동기화된다. 파형 위 음영은 `0 → t` 구간의 각도
+진행을 나타낸다. x축과 param은 도(°) 단위 — 식에서 `x * pi / 180`으로 변환한다.
+`[[plot]]`이 3개이므로 2×2 배치의 넷째 칸은 빈 칸으로 남는다.
+
+```graph
+domain = [0, 360]
+range = [-1.2, 1.2]
+
+[params]
+t = { default = 45, min = 0, max = 360, step = 1 }
+
+[[plot]]
+kind = "circle"
+title = "단위원 — 반지름의 회전 (θ = t°)"
+angle = "t * pi / 180"
+
+[[plot]]
+title = "sin(x°) — 단위원의 y좌표"
+fn = "sin(x * pi / 180)"
+integral = [0, "t"]
+
+[[plot]]
+title = "cos(x°) — 단위원의 x좌표"
+fn = "cos(x * pi / 180)"
+integral = [0, "t"]
+```

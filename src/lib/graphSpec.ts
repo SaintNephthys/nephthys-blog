@@ -2,14 +2,30 @@
  * ```graph 코드 펜스의 스펙 파서 — TOML (2026-07-09 전량 이관, 구 줄 단위 문법 폐기).
  *
  * 문법 (TOML 1.0 고정, smol-toml):
- *   fn = "a * sin(b * x)"                  ← 필수. 식은 항상 문자열로 감싼다
+ *   fn = "a * sin(b * x)"                  ← 단일 그래프. x·param 변수의 식 — 항상 문자열
  *   domain = [-10, 10]                     ← 선택. x 정의역 (기본 [-10, 10])
  *   range = [-2, 2]                        ← 선택. y 표시 범위 (생략 시 자동;
  *                                             점근선이 있는 함수는 지정을 권장)
  *   integral = [0, "t"]                    ← 선택. 적분 구간 음영 + 수치 적분값.
  *                                             경계는 숫자 또는 문자열(param 식, x 불가)
- *   [params]                               ← 선택. 슬라이더 파라미터
+ *   [params]                               ← 선택. 슬라이더 파라미터 (모든 plot 공유)
  *   a = { default = 1, min = 0, max = 5, step = 0.1 }   ← step 생략 시 (max-min)/100
+ *
+ *   [[plot]]                               ← 다중 그래프(1~4개, fn과 혼용 금지).
+ *   title = "sin(x)"                       ←   선택. 구역 타이틀 (생략 시 f(x) = 식)
+ *   fn = "sin(x)"                          ←   필수 (kind = "fn"일 때)
+ *   domain = [0, 6.283]                    ←   선택 — 생략 시 최상위 domain 상속
+ *   range = [-1.2, 1.2]                    ←   선택 — 생략 시 최상위 range 상속
+ *   integral = [0, "t"]                    ←   선택 (다중 모드에서 최상위 integral 금지)
+ *
+ *   [[plot]]                               ← kind = "circle": 단위원 + 회전 반지름.
+ *   kind = "circle"                        ←   fn·domain·range·integral 금지
+ *   angle = "t * pi / 180"                 ←   필수. 반지름 각도(라디안이 되는 식,
+ *                                              param만 사용 가능 — 도 단위 param이면
+ *                                              위처럼 식에서 변환)
+ *
+ * 배치는 작성 순서: 2개 → 2×1, 3~4개 → 2×2(3개면 넷째 칸은 빈 칸).
+ * [[plot]] 배열-테이블의 순서는 TOML 명세가 보장한다.
  *
  * 슬라이더 표시 순서 = [params] 선언 순서. TOML 명세는 테이블 키 순서를 보장하지
  * 않지만, param 이름은 식별자 규칙(숫자로 시작 불가)이라 JS 객체의 문자열 키
@@ -39,17 +55,36 @@ export interface GraphIntegral {
   to: EvalFn
 }
 
-export interface GraphSpec {
+/** 함수 그래프 서브플롯 — 단일 fn 스펙도 plots[0] 하나로 정규화된다 */
+export interface FnPlotSpec {
+  kind: 'fn'
+  title?: string
   fnSource: string
   fn: EvalFn
   domain: [number, number]
   range?: [number, number]
-  params: GraphParam[]
   integral?: GraphIntegral
 }
 
+/** 단위원 서브플롯 — 회전 반지름의 각도(라디안)는 param 식으로 평가된다 */
+export interface CirclePlotSpec {
+  kind: 'circle'
+  title?: string
+  angleSource: string
+  angle: EvalFn
+}
+
+export type PlotSpec = FnPlotSpec | CirclePlotSpec
+
+export interface GraphSpec {
+  plots: PlotSpec[]
+  params: GraphParam[]
+}
+
 const DEFAULT_DOMAIN: [number, number] = [-10, 10]
-const TOP_KEYS = new Set(['fn', 'domain', 'range', 'integral', 'params'])
+const MAX_PLOTS = 4
+const TOP_KEYS = new Set(['fn', 'domain', 'range', 'integral', 'params', 'plot'])
+const PLOT_KEYS = new Set(['kind', 'title', 'fn', 'domain', 'range', 'integral', 'angle'])
 const PARAM_FIELDS = new Set(['default', 'min', 'max', 'step'])
 /**
  * TOML bare 리터럴과 충돌하는 param 이름 — 식 안에서 따옴표 없이 쓰면
@@ -123,6 +158,76 @@ function compileBound(
   throw new Error(`integral ${which}은(는) 숫자 또는 문자열(param 식)이어야 합니다`)
 }
 
+function parseIntegral(v: unknown, paramNames: string[]): GraphIntegral {
+  if (!Array.isArray(v) || v.length !== 2)
+    throw new Error(`integral은 [시작, 끝] 형태의 배열이어야 합니다 (예: [0, "t"])`)
+  const from = compileBound(v[0], '시작값', paramNames)
+  const to = compileBound(v[1], '끝값', paramNames)
+  return { fromSource: from.source, toSource: to.source, from: from.fn, to: to.fn }
+}
+
+interface PlotDefaults {
+  domain?: [number, number]
+  range?: [number, number]
+}
+
+function parsePlot(
+  v: unknown,
+  label: string,
+  paramNames: string[],
+  defaults: PlotDefaults,
+): PlotSpec {
+  if (!isRecord(v)) throw new Error(`${label}은(는) 테이블이어야 합니다`)
+  for (const key of Object.keys(v)) {
+    if (!PLOT_KEYS.has(key))
+      throw new Error(
+        `${label}의 알 수 없는 키: '${key}' (kind·title·fn·domain·range·integral·angle만 지원)`,
+      )
+  }
+  const kind = 'kind' in v ? v.kind : 'fn'
+  if (kind !== 'fn' && kind !== 'circle')
+    throw new Error(`${label}의 kind는 "fn" 또는 "circle"이어야 합니다`)
+
+  let title: string | undefined
+  if ('title' in v) {
+    if (typeof v.title !== 'string') throw new Error(`${label}의 title은 문자열이어야 합니다`)
+    title = v.title
+  }
+
+  if (kind === 'circle') {
+    for (const forbidden of ['fn', 'domain', 'range', 'integral']) {
+      if (forbidden in v)
+        throw new Error(`${label}: kind = "circle"에서는 '${forbidden}'을(를) 쓸 수 없습니다`)
+    }
+    if (!('angle' in v))
+      throw new Error(`${label}에 'angle = "<식>"' 항목이 필요합니다 (kind = "circle")`)
+    if (typeof v.angle !== 'string' || !v.angle.trim())
+      throw new Error(`${label}의 angle은 식을 담은 문자열이어야 합니다 (따옴표로 감쌀 것)`)
+    const angleSource = v.angle.trim()
+    let angle: EvalFn
+    try {
+      angle = compileExpression(angleSource, paramNames)
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e)
+      throw new Error(`${label} angle: ${msg}`, { cause: e })
+    }
+    return { kind: 'circle', title, angleSource, angle }
+  }
+
+  if ('angle' in v)
+    throw new Error(`${label}: 'angle'은 kind = "circle"에서만 지원합니다`)
+  if (!('fn' in v)) throw new Error(`${label}에 'fn = "<식>"' 항목이 필요합니다`)
+  if (typeof v.fn !== 'string' || !v.fn.trim())
+    throw new Error(`${label}의 fn은 식을 담은 문자열이어야 합니다 (따옴표로 감쌀 것)`)
+  const fnSource = v.fn.trim()
+  const fn = compileExpression(fnSource, ['x', ...paramNames])
+  const domain =
+    'domain' in v ? asInterval(v.domain, `${label} domain`) : (defaults.domain ?? DEFAULT_DOMAIN)
+  const range = 'range' in v ? asInterval(v.range, `${label} range`) : defaults.range
+  const integral = 'integral' in v ? parseIntegral(v.integral, paramNames) : undefined
+  return { kind: 'fn', title, fnSource, fn, domain, range, integral }
+}
+
 export function parseGraphSpec(text: string): GraphSpec {
   let data: unknown
   try {
@@ -135,16 +240,8 @@ export function parseGraphSpec(text: string): GraphSpec {
 
   for (const key of Object.keys(data)) {
     if (!TOP_KEYS.has(key))
-      throw new Error(`알 수 없는 키: '${key}' (fn·domain·range·integral·params만 지원)`)
+      throw new Error(`알 수 없는 키: '${key}' (fn·domain·range·integral·params·plot만 지원)`)
   }
-
-  if (!('fn' in data)) throw new Error(`'fn = "<식>"' 항목이 필요합니다`)
-  if (typeof data.fn !== 'string' || !data.fn.trim())
-    throw new Error('fn은 식을 담은 문자열이어야 합니다 (따옴표로 감쌀 것)')
-  const fnSource = data.fn.trim()
-
-  const domain = 'domain' in data ? asInterval(data.domain, 'domain') : DEFAULT_DOMAIN
-  const range = 'range' in data ? asInterval(data.range, 'range') : undefined
 
   const params: GraphParam[] = []
   if ('params' in data) {
@@ -155,16 +252,28 @@ export function parseGraphSpec(text: string): GraphSpec {
   }
   const paramNames = params.map((p) => p.name)
 
-  const fn = compileExpression(fnSource, ['x', ...paramNames])
-
-  let integral: GraphIntegral | undefined
-  if ('integral' in data) {
-    if (!Array.isArray(data.integral) || data.integral.length !== 2)
-      throw new Error(`integral은 [시작, 끝] 형태의 배열이어야 합니다 (예: [0, "t"])`)
-    const from = compileBound(data.integral[0], '시작값', paramNames)
-    const to = compileBound(data.integral[1], '끝값', paramNames)
-    integral = { fromSource: from.source, toSource: to.source, from: from.fn, to: to.fn }
+  const defaults: PlotDefaults = {
+    domain: 'domain' in data ? asInterval(data.domain, 'domain') : undefined,
+    range: 'range' in data ? asInterval(data.range, 'range') : undefined,
   }
 
-  return { fnSource, fn, domain, range, params, integral }
+  let plots: PlotSpec[]
+  if ('plot' in data) {
+    if ('fn' in data)
+      throw new Error(`최상위 fn과 [[plot]]은 함께 쓸 수 없습니다 — 각 plot 안에 fn을 지정`)
+    if ('integral' in data)
+      throw new Error(`[[plot]] 사용 시 integral은 각 plot 안에 지정합니다`)
+    if (!Array.isArray(data.plot))
+      throw new Error(`plot은 [[plot]] 테이블 배열이어야 합니다`)
+    if (data.plot.length < 1 || data.plot.length > MAX_PLOTS)
+      throw new Error(`[[plot]]은 1~${MAX_PLOTS}개만 지원합니다 (현재 ${data.plot.length}개)`)
+    plots = data.plot.map((v, i) => parsePlot(v, `plot ${i + 1}`, paramNames, defaults))
+  } else {
+    if (!('fn' in data)) throw new Error(`'fn = "<식>"' 항목이 필요합니다`)
+    const single: Record<string, unknown> = { fn: data.fn }
+    if ('integral' in data) single.integral = data.integral
+    plots = [parsePlot(single, 'fn', paramNames, defaults)]
+  }
+
+  return { plots, params }
 }

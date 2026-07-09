@@ -1,7 +1,13 @@
 import { useEffect, useId, useMemo, useRef, useState } from 'react'
 import { scaleLinear } from 'd3-scale'
 import { area, line } from 'd3-shape'
-import { parseGraphSpec, type GraphParam, type GraphSpec } from '../../lib/graphSpec'
+import {
+  parseGraphSpec,
+  type CirclePlotSpec,
+  type FnPlotSpec,
+  type GraphParam,
+  type PlotSpec,
+} from '../../lib/graphSpec'
 import type { EvalFn } from '../../lib/mathExpr'
 
 /**
@@ -9,11 +15,14 @@ import type { EvalFn } from '../../lib/mathExpr'
  * D3는 수학(스케일·눈금·경로 생성)만 담당하고 SVG 렌더링은 React가 한다 —
  * DOM 소유권을 React에 남겨 두 라이브러리의 충돌을 원천 차단.
  *
- * viewBox 스케일링을 쓰지 않고 컨테이너 실측 폭(ResizeObserver)으로 스케일을
- * 재계산한다 — SVG 텍스트가 rem을 따라야 FontSizeControl과 정합.
+ * 다중 서브플롯: [[plot]] 1~4개가 작성 순서대로 배치된다(2개: 2×1, 3~4개: 2×2 —
+ * 3개면 넷째 칸은 빈 칸). 모든 서브플롯은 [params] 슬라이더 한 세트에 동기화된다.
+ * 각 서브플롯(SubPlot)이 자기 폭을 ResizeObserver로 실측하므로 배치는 CSS grid가
+ * 전담하고, viewBox 스케일링 없이 SVG 텍스트가 rem 규칙을 따른다.
  */
 
 const PLOT_HEIGHT = 300
+const SUB_PLOT_HEIGHT = 240
 const MARGIN = { top: 14, right: 18, bottom: 30, left: 54 }
 const BASE_SAMPLES = 800
 /** 적응형 세분 최대 깊이 — 문제 구간의 국소 밀도가 기본의 2^6배까지 올라간다 */
@@ -143,19 +152,20 @@ interface PlotData {
 }
 
 function buildPlot(
-  spec: GraphSpec,
+  plot: FnPlotSpec,
   values: Record<string, number>,
   width: number,
+  height: number,
 ): PlotData | null {
   const innerW = width - MARGIN.left - MARGIN.right
-  const innerH = PLOT_HEIGHT - MARGIN.top - MARGIN.bottom
+  const innerH = height - MARGIN.top - MARGIN.bottom
   if (innerW < 40) return null
 
-  const [x0, x1] = spec.domain
+  const [x0, x1] = plot.domain
   const env: Record<string, number> = { ...values, x: 0 }
   const evalAt = (x: number) => {
     env.x = x
-    return spec.fn(env)
+    return plot.fn(env)
   }
 
   // 1차 균등 샘플링 — 자동 y 범위 추정용
@@ -171,8 +181,8 @@ function buildPlot(
 
   const allInvalid = yMin > yMax
   let yDomain: [number, number]
-  if (spec.range) {
-    yDomain = spec.range
+  if (plot.range) {
+    yDomain = plot.range
   } else if (allInvalid) {
     yDomain = [-1, 1]
   } else if (yMin === yMax) {
@@ -184,11 +194,11 @@ function buildPlot(
 
   const xScale = scaleLinear().domain([x0, x1]).range([0, innerW])
   const yScale = scaleLinear().domain(yDomain).range([innerH, 0])
-  if (!spec.range) yScale.nice()
+  if (!plot.range) yScale.nice()
 
   // nice() 반영 후의 최종 표시 범위 기준으로 곡선을 샘플링
   const [yLo, yHi] = yScale.domain() as [number, number]
-  const points = allInvalid ? [] : sampleCurve(spec.fn, values, x0, x1, yLo, yHi)
+  const points = allInvalid ? [] : sampleCurve(plot.fn, values, x0, x1, yLo, yHi)
 
   const gen = line<[number, number]>()
     .x((d) => xScale(d[0]))
@@ -197,9 +207,9 @@ function buildPlot(
 
   // 적분 구간 음영 + 수치 적분값
   let integral: IntegralData | null = null
-  if (spec.integral) {
-    const lo = spec.integral.from(values)
-    const hi = spec.integral.to(values)
+  if (plot.integral) {
+    const lo = plot.integral.from(values)
+    const hi = plot.integral.to(values)
     if (Number.isFinite(lo) && Number.isFinite(hi)) {
       const a = Math.min(lo, hi)
       const b = Math.max(lo, hi)
@@ -302,22 +312,340 @@ function ParamValueInput({ param, value, onCommit }: ParamValueInputProps) {
   )
 }
 
+interface SubPlotProps {
+  plot: PlotSpec
+  values: Record<string, number>
+  height: number
+}
+
+/** 구역의 실측 폭 — 배치는 CSS grid 전담, SVG는 실측 px로 그린다(rem 규칙 유지) */
+function useMeasuredWidth(): [React.RefObject<HTMLDivElement | null>, number] {
+  const ref = useRef<HTMLDivElement>(null)
+  const [width, setWidth] = useState(0)
+  useEffect(() => {
+    const el = ref.current
+    if (!el) return
+    const ro = new ResizeObserver((entries) => {
+      setWidth(entries[0].contentRect.width)
+    })
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [])
+  return [ref, width]
+}
+
+/** 서브플롯 종류 분기 — 훅 구성이 달라 컴포넌트를 나눈다 */
+function SubPlot({ plot, values, height }: SubPlotProps) {
+  return plot.kind === 'circle' ? (
+    <CircleSubPlot plot={plot} values={values} height={height} />
+  ) : (
+    <FnSubPlot plot={plot} values={values} height={height} />
+  )
+}
+
+/** 원 표시 범위 — 반지름 1의 단위원이 눈금과 함께 들어가는 세로 반폭 */
+const CIRCLE_EXTENT = 1.25
+
+/**
+ * kind = "circle" 서브플롯 — 단위원 + param 각도를 따라 회전하는 반지름.
+ * 가로/세로 px-per-unit을 동일하게 맞춰(가로 정의역을 종횡비로 보정) 원이
+ * 타원으로 찌그러지지 않게 한다. 끝점의 축 사영(점선)이 sin·cos 값을 잇는다.
+ */
+function CircleSubPlot({
+  plot,
+  values,
+  height,
+}: {
+  plot: CirclePlotSpec
+  values: Record<string, number>
+  height: number
+}) {
+  const [bodyRef, width] = useMeasuredWidth()
+
+  const data = useMemo(() => {
+    const innerW = width - MARGIN.left - MARGIN.right
+    const innerH = height - MARGIN.top - MARGIN.bottom
+    if (innerW < 40 || innerH < 40) return null
+    const xHalf = CIRCLE_EXTENT * (innerW / innerH)
+    const xScale = scaleLinear().domain([-xHalf, xHalf]).range([0, innerW])
+    const yScale = scaleLinear().domain([-CIRCLE_EXTENT, CIRCLE_EXTENT]).range([innerH, 0])
+    return {
+      innerW,
+      innerH,
+      xScale,
+      yScale,
+      r: xScale(1) - xScale(0),
+      xTicks: xScale.ticks(Math.max(3, Math.min(7, Math.floor(innerW / 60)))),
+      yTicks: yScale.ticks(5),
+      xFormat: xScale.tickFormat(5),
+      yFormat: yScale.tickFormat(5),
+    }
+  }, [width, height])
+
+  const theta = plot.angle(values)
+  const ok = Number.isFinite(theta)
+  const px = ok ? Math.cos(theta) : 0
+  const py = ok ? Math.sin(theta) : 0
+  const deg = ok ? (theta * 180) / Math.PI : NaN
+
+  return (
+    <div ref={bodyRef} className="fngraph__subplot">
+      {data && (
+        <svg className="fngraph__svg" width={width} height={height}>
+          <g transform={`translate(${MARGIN.left},${MARGIN.top})`}>
+            {data.xTicks.map((t) => (
+              <line
+                key={`x${t}`}
+                className={t === 0 ? 'fngraph__grid fngraph__grid--zero' : 'fngraph__grid'}
+                x1={data.xScale(t)}
+                x2={data.xScale(t)}
+                y1={0}
+                y2={data.innerH}
+              />
+            ))}
+            {data.yTicks.map((t) => (
+              <line
+                key={`y${t}`}
+                className={t === 0 ? 'fngraph__grid fngraph__grid--zero' : 'fngraph__grid'}
+                x1={0}
+                x2={data.innerW}
+                y1={data.yScale(t)}
+                y2={data.yScale(t)}
+              />
+            ))}
+            <rect className="fngraph__frame" width={data.innerW} height={data.innerH} />
+            {data.xTicks.map((t) => (
+              <text
+                key={`xl${t}`}
+                className="fngraph__tick"
+                x={data.xScale(t)}
+                y={data.innerH + 18}
+                textAnchor="middle"
+              >
+                {data.xFormat(t)}
+              </text>
+            ))}
+            {data.yTicks.map((t) => (
+              <text
+                key={`yl${t}`}
+                className="fngraph__tick"
+                x={-8}
+                y={data.yScale(t)}
+                dy="0.32em"
+                textAnchor="end"
+              >
+                {data.yFormat(t)}
+              </text>
+            ))}
+            <circle
+              className="fngraph__curve"
+              cx={data.xScale(0)}
+              cy={data.yScale(0)}
+              r={data.r}
+            />
+            {ok && (
+              <>
+                <line
+                  className="fngraph__cross"
+                  x1={data.xScale(px)}
+                  y1={data.yScale(py)}
+                  x2={data.xScale(px)}
+                  y2={data.yScale(0)}
+                />
+                <line
+                  className="fngraph__cross"
+                  x1={data.xScale(px)}
+                  y1={data.yScale(py)}
+                  x2={data.xScale(0)}
+                  y2={data.yScale(py)}
+                />
+                <line
+                  className="fngraph__radius"
+                  x1={data.xScale(0)}
+                  y1={data.yScale(0)}
+                  x2={data.xScale(px)}
+                  y2={data.yScale(py)}
+                />
+                <circle className="fngraph__dot" cx={data.xScale(px)} cy={data.yScale(py)} r={4} />
+              </>
+            )}
+          </g>
+        </svg>
+      )}
+      <div className="fngraph__readout">
+        {ok
+          ? `θ = ${fmt(deg)}°    cos θ = ${fmt(px)}    sin θ = ${fmt(py)}`
+          : 'θ = —  (angle 식이 유한한 값이 아닙니다)'}
+      </div>
+    </div>
+  )
+}
+
+/**
+ * kind = "fn" 서브플롯 — 자기 폭을 ResizeObserver로 실측하고(배치는 CSS grid 전담),
+ * 호버 크로스헤어·함숫값 readout·적분 readout을 구역 단위로 갖는다.
+ */
+function FnSubPlot({
+  plot,
+  values,
+  height,
+}: {
+  plot: FnPlotSpec
+  values: Record<string, number>
+  height: number
+}) {
+  const clipId = useId()
+  const [bodyRef, width] = useMeasuredWidth()
+  const [hoverX, setHoverX] = useState<number | null>(null)
+
+  const data = useMemo(
+    () => buildPlot(plot, values, width, height),
+    [plot, values, width, height],
+  )
+
+  const onPointerMove = (e: React.PointerEvent<SVGSVGElement>) => {
+    if (!data) return
+    const rect = e.currentTarget.getBoundingClientRect()
+    const px = e.clientX - rect.left - MARGIN.left
+    setHoverX(px >= 0 && px <= data.innerW ? data.xScale.invert(px) : null)
+  }
+
+  const hoverY = hoverX !== null ? plot.fn({ ...values, x: hoverX }) : null
+
+  return (
+    <div ref={bodyRef} className="fngraph__subplot">
+      {data && (
+        <svg
+          className="fngraph__svg"
+          width={width}
+          height={height}
+          onPointerMove={onPointerMove}
+          onPointerLeave={() => setHoverX(null)}
+        >
+          <g transform={`translate(${MARGIN.left},${MARGIN.top})`}>
+            <clipPath id={clipId}>
+              <rect width={data.innerW} height={data.innerH} />
+            </clipPath>
+            {data.xTicks.map((t) => (
+              <line
+                key={`x${t}`}
+                className="fngraph__grid"
+                x1={data.xScale(t)}
+                x2={data.xScale(t)}
+                y1={0}
+                y2={data.innerH}
+              />
+            ))}
+            {data.yTicks.map((t) => (
+              <line
+                key={`y${t}`}
+                className={t === 0 ? 'fngraph__grid fngraph__grid--zero' : 'fngraph__grid'}
+                x1={0}
+                x2={data.innerW}
+                y1={data.yScale(t)}
+                y2={data.yScale(t)}
+              />
+            ))}
+            <rect className="fngraph__frame" width={data.innerW} height={data.innerH} />
+            {data.xTicks.map((t) => (
+              <text
+                key={`xl${t}`}
+                className="fngraph__tick"
+                x={data.xScale(t)}
+                y={data.innerH + 18}
+                textAnchor="middle"
+              >
+                {data.xFormat(t)}
+              </text>
+            ))}
+            {data.yTicks.map((t) => (
+              <text
+                key={`yl${t}`}
+                className="fngraph__tick"
+                x={-8}
+                y={data.yScale(t)}
+                dy="0.32em"
+                textAnchor="end"
+              >
+                {data.yFormat(t)}
+              </text>
+            ))}
+            {data.allInvalid ? (
+              <text
+                className="fngraph__tick"
+                x={data.innerW / 2}
+                y={data.innerH / 2}
+                textAnchor="middle"
+              >
+                정의역에서 유한한 함숫값이 없습니다
+              </text>
+            ) : (
+              <g clipPath={`url(#${clipId})`}>
+                {data.integral && data.integral.areaPath && (
+                  <path className="fngraph__area" d={data.integral.areaPath} />
+                )}
+                {data.integral &&
+                  Number.isFinite(data.integral.lo) &&
+                  Number.isFinite(data.integral.hi) &&
+                  [data.integral.lo, data.integral.hi].map((b, i) => (
+                    <line
+                      key={i === 0 ? 'lo' : 'hi'}
+                      className="fngraph__bound"
+                      x1={data.xScale(b)}
+                      x2={data.xScale(b)}
+                      y1={0}
+                      y2={data.innerH}
+                    />
+                  ))}
+                <path className="fngraph__curve" d={data.path} />
+                {hoverX !== null && (
+                  <line
+                    className="fngraph__cross"
+                    x1={data.xScale(hoverX)}
+                    x2={data.xScale(hoverX)}
+                    y1={0}
+                    y2={data.innerH}
+                  />
+                )}
+                {hoverX !== null && hoverY !== null && Number.isFinite(hoverY) && (
+                  <circle
+                    className="fngraph__dot"
+                    cx={data.xScale(hoverX)}
+                    cy={data.yScale(hoverY)}
+                    r={3.5}
+                  />
+                )}
+              </g>
+            )}
+          </g>
+        </svg>
+      )}
+      <div className="fngraph__readout">
+        {hoverX !== null
+          ? `x = ${fmt(hoverX)}    f(x) = ${fmt(hoverY ?? NaN)}`
+          : 'x = —    f(x) = —  (그래프 위로 포인터를 올려 확인)'}
+      </div>
+      {data?.integral && (
+        <div className="fngraph__readout fngraph__readout--integral">
+          {`∫ f dx  [${fmt(data.integral.lo)} → ${fmt(data.integral.hi)}]  =  ${fmt(data.integral.value)}`}
+        </div>
+      )}
+    </div>
+  )
+}
+
 interface FunctionGraphProps {
   /** 코드 펜스 본문(스펙 텍스트) */
   spec: string
 }
 
 function FunctionGraph({ spec: specText }: FunctionGraphProps) {
-  const clipId = useId()
-  const wrapRef = useRef<HTMLDivElement>(null)
-  const [width, setWidth] = useState(0)
   // 스펙(param 정의)이 바뀌면 저장된 슬라이더 값을 무시하도록 키를 함께 저장
   // (CLAUDE.md의 stale 상태 필터링 패턴 — 에디터 프리뷰에서 스펙 수정 시 대응)
   const [paramState, setParamState] = useState<{
     key: string
     values: Record<string, number>
   }>({ key: '', values: {} })
-  const [hoverX, setHoverX] = useState<number | null>(null)
 
   const parsed = useMemo(() => {
     try {
@@ -327,16 +655,6 @@ function FunctionGraph({ spec: specText }: FunctionGraphProps) {
     }
   }, [specText])
   const spec = parsed.spec
-
-  useEffect(() => {
-    const el = wrapRef.current
-    if (!el) return
-    const ro = new ResizeObserver((entries) => {
-      setWidth(entries[0].contentRect.width)
-    })
-    ro.observe(el)
-    return () => ro.disconnect()
-  }, [])
 
   const paramKey = useMemo(
     () => (spec ? JSON.stringify(spec.params) : ''),
@@ -350,11 +668,6 @@ function FunctionGraph({ spec: specText }: FunctionGraphProps) {
     })
     return v
   }, [spec, paramKey, paramState])
-
-  const plot = useMemo(
-    () => (spec ? buildPlot(spec, values, width) : null),
-    [spec, values, width],
-  )
 
   if (!spec) {
     return (
@@ -371,136 +684,30 @@ function FunctionGraph({ spec: specText }: FunctionGraphProps) {
       values: { ...(prev.key === paramKey ? prev.values : {}), [name]: v },
     }))
 
-  const onPointerMove = (e: React.PointerEvent<SVGSVGElement>) => {
-    if (!plot) return
-    const rect = e.currentTarget.getBoundingClientRect()
-    const px = e.clientX - rect.left - MARGIN.left
-    setHoverX(px >= 0 && px <= plot.innerW ? plot.xScale.invert(px) : null)
-  }
-
-  const hoverY = hoverX !== null ? spec.fn({ ...values, x: hoverX }) : null
+  const titleOf = (p: PlotSpec) =>
+    p.title ?? (p.kind === 'circle' ? '단위원' : `f(x) = ${p.fnSource}`)
+  const multi = spec.plots.length > 1
 
   return (
     <div className="fngraph">
-      <div className="fngraph__title">{`f(x) = ${spec.fnSource}`}</div>
-      <div ref={wrapRef} className="fngraph__plot-wrap">
-        {plot && (
-          <svg
-            className="fngraph__svg"
-            width={width}
-            height={PLOT_HEIGHT}
-            onPointerMove={onPointerMove}
-            onPointerLeave={() => setHoverX(null)}
-          >
-            <g transform={`translate(${MARGIN.left},${MARGIN.top})`}>
-              <clipPath id={clipId}>
-                <rect width={plot.innerW} height={plot.innerH} />
-              </clipPath>
-              {plot.xTicks.map((t) => (
-                <line
-                  key={`x${t}`}
-                  className="fngraph__grid"
-                  x1={plot.xScale(t)}
-                  x2={plot.xScale(t)}
-                  y1={0}
-                  y2={plot.innerH}
-                />
-              ))}
-              {plot.yTicks.map((t) => (
-                <line
-                  key={`y${t}`}
-                  className={t === 0 ? 'fngraph__grid fngraph__grid--zero' : 'fngraph__grid'}
-                  x1={0}
-                  x2={plot.innerW}
-                  y1={plot.yScale(t)}
-                  y2={plot.yScale(t)}
-                />
-              ))}
-              <rect className="fngraph__frame" width={plot.innerW} height={plot.innerH} />
-              {plot.xTicks.map((t) => (
-                <text
-                  key={`xl${t}`}
-                  className="fngraph__tick"
-                  x={plot.xScale(t)}
-                  y={plot.innerH + 18}
-                  textAnchor="middle"
-                >
-                  {plot.xFormat(t)}
-                </text>
-              ))}
-              {plot.yTicks.map((t) => (
-                <text
-                  key={`yl${t}`}
-                  className="fngraph__tick"
-                  x={-8}
-                  y={plot.yScale(t)}
-                  dy="0.32em"
-                  textAnchor="end"
-                >
-                  {plot.yFormat(t)}
-                </text>
-              ))}
-              {plot.allInvalid ? (
-                <text
-                  className="fngraph__tick"
-                  x={plot.innerW / 2}
-                  y={plot.innerH / 2}
-                  textAnchor="middle"
-                >
-                  정의역에서 유한한 함숫값이 없습니다
-                </text>
-              ) : (
-                <g clipPath={`url(#${clipId})`}>
-                  {plot.integral && plot.integral.areaPath && (
-                    <path className="fngraph__area" d={plot.integral.areaPath} />
-                  )}
-                  {plot.integral &&
-                    Number.isFinite(plot.integral.lo) &&
-                    Number.isFinite(plot.integral.hi) &&
-                    [plot.integral.lo, plot.integral.hi].map((b, i) => (
-                      <line
-                        key={i === 0 ? 'lo' : 'hi'}
-                        className="fngraph__bound"
-                        x1={plot.xScale(b)}
-                        x2={plot.xScale(b)}
-                        y1={0}
-                        y2={plot.innerH}
-                      />
-                    ))}
-                  <path className="fngraph__curve" d={plot.path} />
-                  {hoverX !== null && (
-                    <line
-                      className="fngraph__cross"
-                      x1={plot.xScale(hoverX)}
-                      x2={plot.xScale(hoverX)}
-                      y1={0}
-                      y2={plot.innerH}
-                    />
-                  )}
-                  {hoverX !== null && hoverY !== null && Number.isFinite(hoverY) && (
-                    <circle
-                      className="fngraph__dot"
-                      cx={plot.xScale(hoverX)}
-                      cy={plot.yScale(hoverY)}
-                      r={3.5}
-                    />
-                  )}
-                </g>
-              )}
-            </g>
-          </svg>
+      {!multi && <div className="fngraph__title">{titleOf(spec.plots[0])}</div>}
+      <div
+        className={
+          multi ? 'fngraph__plot-wrap fngraph__plot-wrap--grid' : 'fngraph__plot-wrap'
+        }
+      >
+        {multi ? (
+          // 작성 순서 배치: 2개 → 2×1, 3~4개 → 2×2 (3개면 넷째 칸은 grid가 빈 칸으로 남긴다)
+          spec.plots.map((p, i) => (
+            <div className="fngraph__cell" key={i}>
+              <div className="fngraph__title fngraph__title--sub">{titleOf(p)}</div>
+              <SubPlot plot={p} values={values} height={SUB_PLOT_HEIGHT} />
+            </div>
+          ))
+        ) : (
+          <SubPlot plot={spec.plots[0]} values={values} height={PLOT_HEIGHT} />
         )}
       </div>
-      <div className="fngraph__readout">
-        {hoverX !== null
-          ? `x = ${fmt(hoverX)}    f(x) = ${fmt(hoverY ?? NaN)}`
-          : 'x = —    f(x) = —  (그래프 위로 포인터를 올려 확인)'}
-      </div>
-      {plot?.integral && (
-        <div className="fngraph__readout fngraph__readout--integral">
-          {`∫ f dx  [${fmt(plot.integral.lo)} → ${fmt(plot.integral.hi)}]  =  ${fmt(plot.integral.value)}`}
-        </div>
-      )}
       {spec.params.length > 0 && (
         <div className="fngraph__params">
           {spec.params.map((p) => (

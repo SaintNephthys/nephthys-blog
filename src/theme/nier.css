@@ -1543,8 +1543,43 @@ a {
 }
 
 .fngraph__plot-wrap {
-  padding: 10px 12px 0;
+  padding: 10px 12px 8px;
   min-height: 300px;
+}
+
+/* 다중 서브플롯 — 작성 순서대로 2열 배치(2개: 2×1, 3~4개: 2×2, 3개면 넷째 칸 빈 칸) */
+.fngraph__plot-wrap--grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.fngraph__cell {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  border: 1px solid var(--nier-line);
+}
+
+.fngraph__title--sub {
+  font-size: 0.6875rem;
+  padding: 4px 10px;
+}
+
+.fngraph__cell .fngraph__subplot {
+  padding: 6px 8px 4px;
+}
+
+/* 좁은 셀에서 안내 문구가 옆 구역을 침범하지 않도록 말줄임 처리 */
+.fngraph__cell .fngraph__readout {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+@media (max-width: 768px) {
+  .fngraph__plot-wrap--grid {
+    grid-template-columns: 1fr;
+  }
 }
 
 .fngraph__svg {
@@ -1588,6 +1623,12 @@ a {
   fill: var(--nier-alert);
 }
 
+/* 단위원(kind = "circle")의 회전 반지름 */
+.fngraph__radius {
+  stroke: var(--nier-alert);
+  stroke-width: 2;
+}
+
 /* 적분 구간 — 곡선과 y=0 사이 음영 + 경계 세로선 */
 .fngraph__area {
   fill: var(--nier-accent);
@@ -1604,8 +1645,9 @@ a {
   color: var(--nier-text);
 }
 
+/* readout은 서브플롯(구역) 소속 — 좌우 여백은 plot-wrap/cell 패딩이 담당 */
 .fngraph__readout {
-  padding: 6px 12px;
+  padding: 6px 0 0;
   font-family: var(--font-mono);
   font-size: 0.75rem;
   color: var(--nier-text-dim);
