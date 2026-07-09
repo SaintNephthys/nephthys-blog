@@ -20,7 +20,7 @@ import 'katex/dist/katex.min.css'
 
 // 함수 그래프는 d3 청크가 초기 번들·PostPage 청크에 섞이지 않도록 lazy —
 // graph 펜스가 있는 게시물에서만 로드된다 (KaTeX와 동일한 격리 원칙)
-const FunctionGraph = lazy(() => import('./FunctionGraph'))
+const FunctionGraph = lazy(() => import('./graph/FunctionGraph'))
 
 type PreProps = ComponentPropsWithoutRef<'pre'> & ExtraProps
 
