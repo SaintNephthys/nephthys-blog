@@ -1725,6 +1725,13 @@ a {
   stroke-width: 2;
 }
 
+/* param 추적점(display.graph.point) — 호버 점(채움)과 구분되는 링 형태 */
+.fngraph__point {
+  fill: var(--nier-panel);
+  stroke: var(--nier-alert);
+  stroke-width: 2;
+}
+
 /* 적분 구간 — 곡선과 y=0 사이 음영 + 경계 세로선 */
 .fngraph__area {
   fill: var(--nier-accent);

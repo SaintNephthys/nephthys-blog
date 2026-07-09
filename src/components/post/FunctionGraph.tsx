@@ -34,7 +34,9 @@ const SIMPSON_STEPS = 1000
 function fmt(v: number): string {
   if (!Number.isFinite(v)) return '—'
   const a = Math.abs(v)
-  if (a !== 0 && (a >= 1e6 || a < 1e-4)) return v.toExponential(3)
+  // sin(180°) = 1.2e-16 같은 영점 부동소수 노이즈는 0으로
+  if (a < 1e-12) return '0'
+  if (a >= 1e6 || a < 1e-4) return v.toExponential(3)
   return String(Number(v.toFixed(4)))
 }
 
@@ -147,6 +149,8 @@ interface PlotData {
   yFormat: (n: number) => string
   path: string
   integral: IntegralData | null
+  /** param 추적점 (display.graph.point + point 식) — y는 비유한일 수 있다 */
+  point: { x: number; y: number } | null
   /** 정의역 전체에서 유한한 함숫값이 하나도 없으면 true */
   allInvalid: boolean
 }
@@ -205,9 +209,16 @@ function buildPlot(
     .y((d) => yScale(d[1]))
     .defined((d) => Number.isFinite(d[1]))
 
-  // 적분 구간 음영 + 수치 적분값 — display.integral = false면 계산째 생략
+  // param 추적점 — 호버처럼 x·f(x)를 추적하되 구동원이 슬라이더(param 식)
+  let point: { x: number; y: number } | null = null
+  if (plot.display.graph.point && plot.point) {
+    const pointX = plot.point(values)
+    if (Number.isFinite(pointX)) point = { x: pointX, y: evalAt(pointX) }
+  }
+
+  // 적분 음영 + 수치 적분값 — 값(integral)·시각화(graph.integral) 어느 쪽도 안 쓰면 계산 생략
   let integral: IntegralData | null = null
-  if (plot.integral && plot.display.integral) {
+  if (plot.integral && (plot.display.integral || plot.display.graph.integral)) {
     const lo = plot.integral.from(values)
     const hi = plot.integral.to(values)
     if (Number.isFinite(lo) && Number.isFinite(hi)) {
@@ -249,6 +260,7 @@ function buildPlot(
     yFormat: yScale.tickFormat(6),
     path: gen(points) ?? '',
     integral,
+    point,
     allInvalid,
   }
 }
@@ -538,6 +550,8 @@ function FnSubPlot({
   }
 
   const hoverY = hoverX !== null ? plot.fn({ ...values, x: hoverX }) : null
+  // x·f(x) readout의 추적 대상: 호버 중이면 호버 지점, 아니면 param 추적점
+  const tracked = hoverX !== null ? { x: hoverX, y: hoverY ?? NaN } : (data?.point ?? null)
 
   return (
     <div ref={bodyRef} className="fngraph__subplot">
@@ -608,10 +622,11 @@ function FnSubPlot({
               </text>
             ) : (
               <g clipPath={`url(#${clipId})`}>
-                {data.integral && data.integral.areaPath && (
+                {plot.display.graph.integral && data.integral && data.integral.areaPath && (
                   <path className="fngraph__area" d={data.integral.areaPath} />
                 )}
-                {data.integral &&
+                {plot.display.graph.integral &&
+                  data.integral &&
                   Number.isFinite(data.integral.lo) &&
                   Number.isFinite(data.integral.hi) &&
                   [data.integral.lo, data.integral.hi].map((b, i) => (
@@ -625,6 +640,14 @@ function FnSubPlot({
                     />
                   ))}
                 <path className="fngraph__curve" d={data.path} />
+                {data.point && Number.isFinite(data.point.y) && (
+                  <circle
+                    className="fngraph__point"
+                    cx={data.xScale(data.point.x)}
+                    cy={data.yScale(data.point.y)}
+                    r={4.5}
+                  />
+                )}
                 {plot.display.x && hoverX !== null && (
                   <line
                     className="fngraph__cross"
@@ -654,12 +677,12 @@ function FnSubPlot({
         <div className="fngraph__readouts">
           {plot.display.x && (
             <div className="fngraph__readout">
-              {`x = ${hoverX !== null ? fmt(hoverX) : '—'}`}
+              {`x = ${tracked ? fmt(tracked.x) : '—'}`}
             </div>
           )}
           {plot.display.fx && (
             <div className="fngraph__readout">
-              {`f(x) = ${hoverX !== null ? fmt(hoverY ?? NaN) : '—'}`}
+              {`f(x) = ${tracked ? fmt(tracked.y) : '—'}`}
             </div>
           )}
           {plot.display.integral && data?.integral && (

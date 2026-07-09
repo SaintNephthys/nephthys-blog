@@ -55,14 +55,24 @@ export interface GraphIntegral {
   to: EvalFn
 }
 
-/** fn plot의 readout 표시 항목 — `display.항목 = false`로 감출 수 있다(기본 전부 true) */
+/**
+ * fn plot의 표시 항목 — **기본 전부 false**(명시한 것만 표시).
+ * 최상위 항목(x·fx·integral)은 readout 줄, `graph.*`는 그래프 위 시각 요소:
+ * `graph.integral` = 적분 음영·경계선, `graph.point` = param 추적점
+ * (`point = "<식>"` 키 필요 — 슬라이더 변화에 따라 곡선 위를 움직이는 마커.
+ * 호버 중이 아닐 때 x·fx readout은 이 추적점의 값을 표시한다).
+ */
 export interface FnDisplay {
   x: boolean
   fx: boolean
   integral: boolean
+  graph: {
+    integral: boolean
+    point: boolean
+  }
 }
 
-/** circle plot의 readout 표시 항목 */
+/** circle plot의 표시 항목 — 기본 전부 false. 각 항목은 readout + 대응 시각 요소 쌍 */
 export interface CircleDisplay {
   theta: boolean
   cos: boolean
@@ -78,6 +88,9 @@ export interface FnPlotSpec {
   domain: [number, number]
   range?: [number, number]
   integral?: GraphIntegral
+  /** 추적점의 x 위치 — param 식 (display.graph.point로 표시) */
+  pointSource?: string
+  point?: EvalFn
   display: FnDisplay
 }
 
@@ -99,7 +112,16 @@ export interface GraphSpec {
 
 const DEFAULT_DOMAIN: [number, number] = [-10, 10]
 const MAX_PLOTS = 4
-const TOP_KEYS = new Set(['fn', 'domain', 'range', 'integral', 'params', 'plot', 'display'])
+const TOP_KEYS = new Set([
+  'fn',
+  'domain',
+  'range',
+  'integral',
+  'point',
+  'params',
+  'plot',
+  'display',
+])
 const PLOT_KEYS = new Set([
   'kind',
   'title',
@@ -107,6 +129,7 @@ const PLOT_KEYS = new Set([
   'domain',
   'range',
   'integral',
+  'point',
   'angle',
   'display',
 ])
@@ -197,29 +220,51 @@ interface PlotDefaults {
 }
 
 /**
- * readout 표시 항목 파싱 — `display.항목 = true/false` (TOML dotted key가
- * 중첩 테이블로 들어온다). 생략된 항목은 true(전부 표시)가 기본.
+ * 표시 항목 플래그 파싱 — `display.항목 = true/false` (TOML dotted key가
+ * 중첩 테이블로 들어온다). **생략된 항목은 false**(명시한 것만 표시)가 기본.
  */
-function parseDisplay(
+function parseFlags(
   v: unknown,
   label: string,
   allowed: readonly string[],
+  ctx = 'display',
 ): Record<string, boolean> {
   const out: Record<string, boolean> = {}
-  for (const key of allowed) out[key] = true
+  for (const key of allowed) out[key] = false
   if (v === undefined) return out
   if (!isRecord(v))
-    throw new Error(`${label}의 display는 'display.항목 = true/false' 형태여야 합니다`)
+    throw new Error(`${label}의 ${ctx}은(는) '${ctx}.항목 = true/false' 형태여야 합니다`)
   for (const [key, val] of Object.entries(v)) {
     if (!allowed.includes(key))
       throw new Error(
-        `${label}의 알 수 없는 display 항목: '${key}' (${allowed.join('·')}만 지원)`,
+        `${label}의 알 수 없는 ${ctx} 항목: '${key}' (${allowed.join('·')}만 지원)`,
       )
     if (typeof val !== 'boolean')
-      throw new Error(`${label}의 display.${key}은(는) true/false여야 합니다`)
+      throw new Error(`${label}의 ${ctx}.${key}은(는) true/false여야 합니다`)
     out[key] = val
   }
   return out
+}
+
+/** fn plot의 display — 최상위(readout)와 graph.*(시각 요소) 두 계층 */
+function parseFnDisplay(v: unknown, label: string): FnDisplay {
+  let graphPart: unknown
+  let flatPart: unknown = v
+  if (v !== undefined) {
+    if (!isRecord(v))
+      throw new Error(`${label}의 display는 'display.항목 = true/false' 형태여야 합니다`)
+    const { graph, ...rest } = v
+    graphPart = graph
+    flatPart = rest
+  }
+  const flat = parseFlags(flatPart, label, ['x', 'fx', 'integral'])
+  const graph = parseFlags(graphPart, label, ['integral', 'point'], 'display.graph')
+  return {
+    x: flat.x,
+    fx: flat.fx,
+    integral: flat.integral,
+    graph: { integral: graph.integral, point: graph.point },
+  }
 }
 
 function parsePlot(
@@ -246,7 +291,7 @@ function parsePlot(
   }
 
   if (kind === 'circle') {
-    for (const forbidden of ['fn', 'domain', 'range', 'integral']) {
+    for (const forbidden of ['fn', 'domain', 'range', 'integral', 'point']) {
       if (forbidden in v)
         throw new Error(`${label}: kind = "circle"에서는 '${forbidden}'을(를) 쓸 수 없습니다`)
     }
@@ -262,7 +307,7 @@ function parsePlot(
       const msg = e instanceof Error ? e.message : String(e)
       throw new Error(`${label} angle: ${msg}`, { cause: e })
     }
-    const display = parseDisplay(v.display, label, [
+    const display = parseFlags(v.display, label, [
       'theta',
       'cos',
       'sin',
@@ -281,12 +326,38 @@ function parsePlot(
     'domain' in v ? asInterval(v.domain, `${label} domain`) : (defaults.domain ?? DEFAULT_DOMAIN)
   const range = 'range' in v ? asInterval(v.range, `${label} range`) : defaults.range
   const integral = 'integral' in v ? parseIntegral(v.integral, paramNames) : undefined
-  const display = parseDisplay(v.display, label, [
-    'x',
-    'fx',
-    'integral',
-  ]) as unknown as FnDisplay
-  return { kind: 'fn', title, fnSource, fn, domain, range, integral, display }
+
+  let pointSource: string | undefined
+  let point: EvalFn | undefined
+  if ('point' in v) {
+    if (typeof v.point !== 'string' || !v.point.trim())
+      throw new Error(`${label}의 point는 식을 담은 문자열이어야 합니다 (따옴표로 감쌀 것)`)
+    pointSource = v.point.trim()
+    try {
+      point = compileExpression(pointSource, paramNames)
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e)
+      throw new Error(`${label} point: ${msg}`, { cause: e })
+    }
+  }
+
+  const display = parseFnDisplay(v.display, label)
+  if (display.graph.point && !point)
+    throw new Error(
+      `${label}: display.graph.point에는 'point = "<param 식>"' 항목이 필요합니다`,
+    )
+  return {
+    kind: 'fn',
+    title,
+    fnSource,
+    fn,
+    domain,
+    range,
+    integral,
+    pointSource,
+    point,
+    display,
+  }
 }
 
 export function parseGraphSpec(text: string): GraphSpec {
@@ -326,6 +397,8 @@ export function parseGraphSpec(text: string): GraphSpec {
       throw new Error(`[[plot]] 사용 시 integral은 각 plot 안에 지정합니다`)
     if ('display' in data)
       throw new Error(`[[plot]] 사용 시 display는 각 plot 안에 지정합니다`)
+    if ('point' in data)
+      throw new Error(`[[plot]] 사용 시 point는 각 plot 안에 지정합니다`)
     if (!Array.isArray(data.plot))
       throw new Error(`plot은 [[plot]] 테이블 배열이어야 합니다`)
     if (data.plot.length < 1 || data.plot.length > MAX_PLOTS)
@@ -335,6 +408,7 @@ export function parseGraphSpec(text: string): GraphSpec {
     if (!('fn' in data)) throw new Error(`'fn = "<식>"' 항목이 필요합니다`)
     const single: Record<string, unknown> = { fn: data.fn }
     if ('integral' in data) single.integral = data.integral
+    if ('point' in data) single.point = data.point
     if ('display' in data) single.display = data.display
     plots = [parsePlot(single, 'fn', paramNames, defaults)]
   }
