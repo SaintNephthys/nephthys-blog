@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import CategoryManager from '../components/editor/CategoryManager'
+import GraphGuide from '../components/editor/GraphGuide'
 import MarkdownToolbar from '../components/editor/MarkdownToolbar'
 import MarkdownRenderer from '../components/post/MarkdownRenderer'
 import Panel from '../components/widgets/Panel'
@@ -29,7 +30,7 @@ interface StatusMessage {
 }
 
 // 로컬 dev 전용 페이지 — App.tsx가 DEV일 때만 라우트를 등록하므로 프로덕션에서는 로드되지 않는다
-type EditorTab = 'posts' | 'categories'
+type EditorTab = 'posts' | 'categories' | 'guide'
 
 function EditorPage() {
   const [tab, setTab] = useState<EditorTab>('posts')
@@ -286,14 +287,29 @@ function EditorPage() {
         >
           카테고리 편집
         </button>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={tab === 'guide'}
+          className={`editor-tabs__tab${tab === 'guide' ? ' active' : ''}`}
+          onClick={() => setTab('guide')}
+        >
+          그래프 가이드
+        </button>
       </div>
       <p className="page-subtitle">
-        {tab === 'posts' ? '작성 → 저장 → 게시 → 배포' : '카테고리 추가 · 삭제'}
+        {tab === 'posts'
+          ? '작성 → 저장 → 게시 → 배포'
+          : tab === 'categories'
+            ? '카테고리 추가 · 삭제'
+            : '```graph 문법 레퍼런스'}
       </p>
 
       {tab === 'categories' && (
         <CategoryManager categories={allCategories} onChanged={handleCategoriesChanged} />
       )}
+
+      {tab === 'guide' && <GraphGuide />}
 
       {/* 탭을 오가도 작성 중인 폼이 유지되도록 언마운트 대신 숨긴다 */}
       <div className={`editor${tab === 'posts' ? '' : ' editor--hidden'}`}>

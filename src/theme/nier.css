@@ -37,6 +37,13 @@ body {
 /* 모든 font-size는 rem 기준 — FontSizeControl이 이 값을 조절한다 */
 html {
   font-size: 18px;
+  /* 모바일 브라우저의 텍스트 자동 확대(font boosting) 차단 — 켜두면 가로 스크롤
+     되는 코드 블럭·긴 문단을 실기기 Safari/Chrome이 임의 배율로 부풀려서
+     ① hljs 코드만 과대 표시 ② 줄 번호 거터와 정렬 어긋남 ③ 부스팅된 텍스트가
+     root font-size 변경(FontSizeControl)을 무시하는 문제가 생긴다
+     (데스크톱·모바일 에뮬레이션에서는 재현되지 않음 — 실기기 전용 동작) */
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
 }
 
 body {
@@ -647,6 +654,59 @@ a {
 
 .editor--hidden {
   display: none;
+}
+
+/* ============================================================
+   Graph guide (에디터 그래프 가이드 탭 — ```graph 문법 레퍼런스)
+   ============================================================ */
+
+.graph-guide {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  max-width: 1100px;
+}
+
+.graph-guide__table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.8125rem;
+}
+
+.graph-guide__table th,
+.graph-guide__table td {
+  padding: 5px 10px;
+  border: 1px solid var(--nier-line-soft);
+  text-align: left;
+  vertical-align: top;
+}
+
+.graph-guide__table th {
+  background: var(--nier-panel-dim);
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+  letter-spacing: 0.08em;
+  color: var(--nier-text-dim);
+  white-space: nowrap;
+}
+
+.graph-guide__table td:first-child {
+  white-space: nowrap;
+}
+
+.graph-guide__table code {
+  padding: 0 4px;
+  background: var(--nier-panel-dim);
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  color: var(--nier-text);
+  white-space: pre-wrap;
+}
+
+.graph-guide__note {
+  margin: 10px 0 0;
+  font-size: 0.75rem;
+  color: var(--nier-text-dim);
 }
 
 /* ============================================================
