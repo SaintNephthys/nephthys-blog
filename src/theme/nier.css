@@ -1704,10 +1704,34 @@ a {
   fill: var(--nier-text-dim);
 }
 
+/* 곡선 구분색 — 구역 안 선언 순서대로 c0~c3 순환. 새 색은 반드시 이 변수로 */
+.fngraph {
+  --fngraph-c0: var(--nier-dark);
+  --fngraph-c1: var(--nier-alert);
+  --fngraph-c2: #3d7f77; /* NieR 코드 테마 teal 계열 */
+  --fngraph-c3: #6d7a4f; /* olive 계열 */
+}
+
 .fngraph__curve {
   fill: none;
   stroke: var(--nier-dark);
   stroke-width: 2;
+}
+
+.fngraph__curve--c0 {
+  stroke: var(--fngraph-c0);
+}
+
+.fngraph__curve--c1 {
+  stroke: var(--fngraph-c1);
+}
+
+.fngraph__curve--c2 {
+  stroke: var(--fngraph-c2);
+}
+
+.fngraph__curve--c3 {
+  stroke: var(--fngraph-c3);
 }
 
 .fngraph__cross {
@@ -1719,17 +1743,55 @@ a {
   fill: var(--nier-alert);
 }
 
-/* 단위원(kind = "circle")의 회전 반지름 */
-.fngraph__radius {
-  stroke: var(--nier-alert);
-  stroke-width: 2;
-}
-
-/* param 추적점(display.graph.point) — 호버 점(채움)과 구분되는 링 형태 */
+/* 추적점(point 도구)·접점 — 호버 점(채움)과 구분되는 링 형태 */
 .fngraph__point {
   fill: var(--nier-panel);
   stroke: var(--nier-alert);
   stroke-width: 2;
+}
+
+/* 리만합 막대 */
+.fngraph__bars {
+  fill: var(--nier-accent);
+  fill-opacity: 0.45;
+  stroke: var(--nier-alert);
+  stroke-opacity: 0.55;
+}
+
+/* 방향장(y' = 식) 기울기 눈금 */
+.fngraph__field {
+  stroke: var(--nier-text-dim);
+  stroke-opacity: 0.7;
+}
+
+/* 접선·할선 보조 직선 */
+.fngraph__aux {
+  stroke: var(--nier-alert);
+  stroke-width: 1.5;
+}
+
+/* 벡터 화살표 */
+.fngraph__vector {
+  stroke: var(--nier-dark);
+  stroke-width: 2;
+}
+
+.fngraph__vhead {
+  fill: var(--nier-dark);
+}
+
+/* 선분·직선(점근선 등) 보조선 */
+.fngraph__seg {
+  stroke: var(--nier-text-dim);
+  stroke-width: 1.5;
+  stroke-dasharray: 5 3;
+}
+
+/* label 도구 텍스트 */
+.fngraph__label {
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  fill: var(--nier-text);
 }
 
 /* 적분 구간 — 곡선과 y=0 사이 음영 + 경계 세로선 */
@@ -1782,6 +1844,25 @@ a {
   font-family: var(--font-mono);
   font-size: 0.75rem;
   color: var(--nier-text);
+}
+
+/* animate param의 재생/정지 토글 */
+.fngraph__param-play {
+  flex: none;
+  width: 1.6em;
+  padding: 0;
+  border: 1px solid var(--nier-line);
+  background: var(--nier-panel-dim);
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+  color: var(--nier-text);
+  cursor: pointer;
+}
+
+.fngraph__param-play:hover,
+.fngraph__param-play[aria-pressed='true'] {
+  background: var(--nier-dark);
+  color: var(--nier-text-inv);
 }
 
 /* 값 직접 입력 박스 + 하단 유효성 안내 */
@@ -2077,6 +2158,32 @@ a {
   margin: 6px 0 0;
   font-size: 0.625rem;
   color: var(--nier-alert);
+}
+
+/* DSL 문장 미리보기 — 편집 가능한 버퍼 */
+.graphdlg__preview {
+  width: 100%;
+  height: calc(100% - 4.5rem);
+  min-height: 120px;
+  padding: 6px 8px;
+  border: 1px solid var(--nier-line);
+  border-radius: 0;
+  background: var(--nier-panel-dim);
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  color: var(--nier-text);
+  resize: none;
+}
+
+.graphdlg__preview:focus {
+  outline: none;
+  border-color: var(--nier-dark);
+  background: var(--nier-text-inv);
+}
+
+.graphdlg__clear {
+  margin-top: 6px;
+  font-size: 0.6875rem;
 }
 
 .graphdlg__footer {

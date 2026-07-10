@@ -1,9 +1,9 @@
 import { useState } from 'react'
-import type { GraphParam } from '../../../lib/graph'
+import type { AnimateDef, ParamDef } from '../../../lib/scene'
 import { fmt } from './fmt'
 
 interface ParamValueInputProps {
-  param: GraphParam
+  param: ParamDef
   value: number
   onCommit: (v: number) => void
 }
@@ -62,34 +62,64 @@ function ParamValueInput({ param, value, onCommit }: ParamValueInputProps) {
 }
 
 interface ParamControlsProps {
-  params: GraphParam[]
+  params: ParamDef[]
   values: Record<string, number>
   onChange: (name: string, v: number) => void
+  animations: AnimateDef[]
+  /** 재생 중인 param 이름들 */
+  playing: string[]
+  onTogglePlay: (name: string) => void
 }
 
-/** [params] 공유 슬라이더 + 값 직접 입력 — 모든 서브플롯이 이 한 세트에 동기화된다 */
-function ParamControls({ params, values, onChange }: ParamControlsProps) {
+/**
+ * param 공유 슬라이더 + 값 직접 입력 — 모든 구역이 이 한 세트에 동기화된다.
+ * animate 지시문이 있는 param에는 재생/정지 토글이 붙는다(기본 정지 — 저자가
+ * 선언해도 독자가 켜기 전에는 CPU를 쓰지 않는다).
+ */
+function ParamControls({
+  params,
+  values,
+  onChange,
+  animations,
+  playing,
+  onTogglePlay,
+}: ParamControlsProps) {
   if (params.length === 0) return null
   return (
     <div className="fngraph__params">
-      {params.map((p) => (
-        <div className="fngraph__param" key={p.name}>
-          <span className="fngraph__param-name">{p.name}</span>
-          <input
-            type="range"
-            min={p.min}
-            max={p.max}
-            step={p.step}
-            value={values[p.name]}
-            onChange={(e) => onChange(p.name, Number(e.target.value))}
-          />
-          <ParamValueInput
-            param={p}
-            value={values[p.name]}
-            onCommit={(v) => onChange(p.name, v)}
-          />
-        </div>
-      ))}
+      {params.map((p) => {
+        const animated = animations.some((a) => a.name === p.name)
+        const isPlaying = playing.includes(p.name)
+        return (
+          <div className="fngraph__param" key={p.name}>
+            <span className="fngraph__param-name">{p.name}</span>
+            {animated && (
+              <button
+                type="button"
+                className="fngraph__param-play"
+                aria-pressed={isPlaying}
+                aria-label={`${p.name} 애니메이션 ${isPlaying ? '정지' : '재생'}`}
+                onClick={() => onTogglePlay(p.name)}
+              >
+                {isPlaying ? '■' : '▶'}
+              </button>
+            )}
+            <input
+              type="range"
+              min={p.min}
+              max={p.max}
+              step={p.step}
+              value={values[p.name]}
+              onChange={(e) => onChange(p.name, Number(e.target.value))}
+            />
+            <ParamValueInput
+              param={p}
+              value={values[p.name]}
+              onCommit={(v) => onChange(p.name, v)}
+            />
+          </div>
+        )
+      })}
     </div>
   )
 }

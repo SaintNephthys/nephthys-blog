@@ -1,33 +1,25 @@
 /**
- * 적응형 곡선 샘플링 — 인접 샘플의 y 변화가 표시 범위(span)를 넘으면 구간을
- * 재귀 세분한다. 연속이지만 가파른 구간은 점이 촘촘해져 매끄럽게 이어지고,
- * 발산하는 구간(점근선)은 최대 깊이에서도 간극이 남아 NaN 마커로 확실히 끊는다.
+ * 곡선 샘플링 — 명시적 곡선은 적응형(구 sampling.ts 이식), 매개변수 곡선은 균등.
  *
- * 슬라이더로 극점이 샘플 격자 사이를 지날 때 스파이크가 그려졌다/안 그려졌다
- * 하며 깜빡이던 문제의 해결책: 판정이 격자 위치가 아니라 함수의 발산 여부로
- * 내려지므로 프레임마다 결과가 일관된다. 유한하지만 거대한 값은 표시 범위의
- * ±2배로 클램프해 좌표 폭주 없이 분기 끝이 안정적으로 화면 밖까지 이어진다.
+ * 적응형 규칙: 인접 샘플의 y 변화가 표시 범위(span)를 넘으면 구간을 재귀 세분한다.
+ * 연속이지만 가파른 구간은 점이 촘촘해져 매끄럽게 이어지고, 발산 구간(점근선)은
+ * 최대 깊이에서도 간극이 남아 NaN 마커로 확실히 끊는다. 판정이 격자 위치가 아니라
+ * 발산 여부라서 슬라이더 드래그 중에도 프레임 간 결과가 일관된다(깜빡임 버그의
+ * 해결책 — devnotes 참조). 유한한 거대값은 표시 범위 ±2배로 클램프해 분기 끝이
+ * 안정적으로 화면 밖까지 이어진다.
  */
-
-import type { EvalFn } from '../mathExpr'
 
 export const BASE_SAMPLES = 800
 /** 적응형 세분 최대 깊이 — 문제 구간의 국소 밀도가 기본의 2^6배까지 올라간다 */
 const MAX_REFINE_DEPTH = 6
 
 export function sampleCurve(
-  fn: EvalFn,
-  values: Record<string, number>,
+  evalAt: (x: number) => number,
   x0: number,
   x1: number,
   yLo: number,
   yHi: number,
 ): Array<[number, number]> {
-  const env: Record<string, number> = { ...values, x: 0 }
-  const evalAt = (x: number) => {
-    env.x = x
-    return fn(env)
-  }
   const span = yHi - yLo
   const jumpLimit = span
   const clampLo = yLo - 2 * span
@@ -78,6 +70,26 @@ export function sampleCurve(
     segment(prevX, prevY, x, y, 0)
     prevX = x
     prevY = y
+  }
+  return points
+}
+
+export const PARAM_SAMPLES = 600
+
+/** 매개변수 곡선 (x(s), y(s)) 균등 샘플링 — 비유한값은 NaN 마커(gap) */
+export function sampleParametric(
+  fx: (s: number) => number,
+  fy: (s: number) => number,
+  s0: number,
+  s1: number,
+): Array<[number, number]> {
+  const points: Array<[number, number]> = []
+  for (let i = 0; i <= PARAM_SAMPLES; i += 1) {
+    const s = s0 + ((s1 - s0) * i) / PARAM_SAMPLES
+    const x = fx(s)
+    const y = fy(s)
+    if (Number.isFinite(x) && Number.isFinite(y)) points.push([x, y])
+    else points.push([NaN, NaN])
   }
   return points
 }

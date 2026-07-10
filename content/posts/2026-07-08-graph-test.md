@@ -5,113 +5,191 @@ tags:
   - d3
   - graph
   - test
-summary: graph 코드 펜스(TOML 스펙)로 렌더되는 D3 기반 함수 그래프와 파라미터 슬라이더 동작 확인.
+summary: graph 코드 펜스(수학 문장 DSL)로 렌더되는 인터랙티브 그래프 — 곡선·음함수·적분·리만합·접선·방향장과 파라미터 슬라이더 동작 확인.
 category: Dev
 ---
 
 # 감쇠 사인파
 
 슬라이더로 진폭(`a`)·진동수(`b`)·감쇠(`d`)를 조절하면 곡선이 실시간으로 갱신된다.
-그래프 위에 포인터를 올리면 해당 지점의 함숫값을 읽을 수 있다.
+그래프 위에 포인터를 올리면 해당 지점의 함숫값을 읽을 수 있다(호버 readout은 기본 on).
 
 ```graph
-fn = "a * exp(-d * x) * sin(b * x)"
-domain = [0, 20]
-display.x = true
-display.fx = true
-
-[params]
-a = { default = 1, min = 0.2, max = 3, step = 0.1 }
-b = { default = 2, min = 0.5, max = 8, step = 0.1 }
-d = { default = 0.2, min = 0, max = 1, step = 0.02 }
+f(x) = a * exp(-d*x) * sin(b*x)
+view x[0, 20]
+a = 1 : [0.2, 3, 0.1]
+b = 2 : [0.5, 8, 0.1]
+d = 0.2 : [0, 1, 0.02]
 ```
 
 # 점근선이 있는 함수
 
-특이점 부근에서 값이 발산하는 함수는 `range`로 y 표시 범위를 고정하는 것을 권장한다.
+특이점 부근에서 값이 발산하는 함수는 `view`로 y 표시 범위를 고정하는 것을 권장한다.
 비유한값 구간은 선이 끊겨 세로 스파이크 없이 표시된다.
 
 ```graph
-fn = "1 / (x - c)"
-domain = [-5, 5]
-range = [-10, 10]
-display.x = true
-display.fx = true
-
-[params]
-c = { default = 0, min = -3, max = 3, step = 0.1 }
+f(x) = 1 / (x - c)
+view x[-5, 5] y[-10, 10]
+c = 0 : [-3, 3, 0.1]
 ```
 
 # 삼차함수의 적분
 
-`integral = [0, "t"]` — 슬라이더로 적분 상한 `t`를 움직이면 음영 영역(곡선과 y=0 사이)과
-수치 적분값이 함께 변한다. 경계는 숫자 또는 문자열로 감싼 param 식을 쓸 수 있다.
+`integral(f, [0, t])` — 슬라이더로 적분 상한 `t`를 움직이면 음영 영역(곡선과 y=0 사이)과
+수치 적분값이 함께 변한다. 경계에는 숫자 또는 param 식을 쓸 수 있다.
 
 ```graph
-fn = "(x + 2) * x * (x - 2) / 4"
-domain = [-4, 4]
-range = [-6, 6]
-integral = [0, "t"]
-display.x = true
-display.fx = true
-display.integral = true
-display.graph.integral = true
+f(x) = (x + 2) * x * (x - 2) / 4
+view x[-4, 4] y[-6, 6]
+integral(f, [0, t])
+t = 1 : [-3, 3, 0.05]
+```
 
-[params]
-t = { default = 1, min = -3, max = 3, step = 0.05 }
+# 접선과 도함수
+
+`f'` 한 줄로 기호 미분된 도함수 곡선이 그려지고, `tangent(f, t)`가 접점 `t`에서의
+접선과 기울기 readout을 표시한다. 접선의 기울기와 f′ 곡선의 값이 일치하는 것을
+슬라이더로 확인할 수 있다.
+
+```graph
+f(x) = x^3 - 3x
+f'
+tangent(f, t)
+view x[-3, 3] y[-5, 5]
+t = 1 : [-2.5, 2.5]
+```
+
+# 리만합과 정적분
+
+`riemann(f, [0, 2], n, mid)` — n을 키우면 Σ 값이 ∫ 값(고정 표시)에 수렴한다.
+`hide integral.area`로 적분 음영은 끄고 수치만 남겼다.
+
+```graph
+f(x) = x^2
+riemann(f, [0, 2], n, mid)
+integral(f, [0, 2])
+hide integral.area
+view x[-0.5, 2.5] y[-0.5, 4.5]
+n = 4 : [1, 100, 1]
+```
+
+# 원과 직선의 위치 관계
+
+음함수 곡선 `C: x² + y² = r²`과 직선 `l`의 교점을 `intersect(C, l)`가 자동 표시한다.
+`k`를 움직여 두 점 → 접함 → 만나지 않음의 전환을 관찰한다. `view … equal`이
+종횡비를 등화해 원이 원으로 보인다.
+
+```graph
+view x[-4, 4] y[-4, 4] equal
+C: x^2 + y^2 = r^2
+l: y = x + k
+intersect(C, l)
+r = 2 : [0.5, 3]
+k = 1 : [-4, 4]
+```
+
+# 단위원과 sin·cos
+
+세 구역이 공통 param `t`(도 단위)에 동기화된다. 1번 칸은 음함수 단위원 +
+회전 반지름 벡터 + 축 사영 선분, 2·3번 칸은 `point(f, t)` 추적점이 곡선 위를
+따라간다. `animate` 지시문의 ▶ 버튼을 누르면 자동 재생된다.
+
+```graph
+t = 45 : [0, 360, 1]
+animate t: 0 -> 360, 8s, loop
+
+--- 단위원 (θ = t°)
+view x[-1.3, 1.3] y[-1.3, 1.3] equal
+C: x^2 + y^2 = 1
+vector((0, 0), (cos(t*pi/180), sin(t*pi/180)))
+segment((cos(t*pi/180), sin(t*pi/180)), (cos(t*pi/180), 0))
+segment((cos(t*pi/180), sin(t*pi/180)), (0, sin(t*pi/180)))
+
+--- sin(x°) — 단위원의 y좌표
+view x[0, 360] y[-1.2, 1.2]
+f(x) = sin(x*pi/180)
+integral(f, [0, t])
+hide integral.value
+point(f, t)
+
+--- cos(x°) — 단위원의 x좌표
+view x[0, 360] y[-1.2, 1.2]
+g(x) = cos(x*pi/180)
+integral(g, [0, t])
+hide integral.value
+point(g, t)
+```
+
+# 방향장과 해곡선
+
+`y' = x - y` 한 줄이 기울기장을 그린다. 해곡선 `f`의 상수 `c`를 움직이면
+곡선이 항상 장의 흐름을 따라가는 것을 확인할 수 있다.
+
+```graph
+y' = x - y
+f(x) = x - 1 + c*exp(-x)
+view x[-4, 4] y[-4, 4]
+c = 1 : [-3, 3]
+```
+
+# 테일러 부분합
+
+`sum(k, 0, n, 식)`으로 sin의 테일러 부분합을 정의했다. 차수 `n`을 키우면
+근사 곡선(두 번째 색)이 원 함수에 붙는 범위가 넓어진다.
+
+```graph
+f(x) = sin(x)
+g(x) = sum(k, 0, n, (-1)^k * x^(2k+1) / fact(2k+1))
+view x[-2pi, 2pi] y[-2, 2]
+n = 1 : [0, 8, 1]
+```
+
+# 극곡선·부등식 영역·수열
+
+왼쪽 위부터: 심장형 극곡선(`r = 1 + a·cosθ`), 부등식 영역(`y ≤ x + k`),
+수열의 극한(`aₙ = 1 + (−1)ⁿ/n` — 점선은 극한 y = 1), 매개변수 타원.
+
+```graph
+a = 1 : [0, 2, 0.05]
+k = 0 : [-3, 3]
+
+--- 심장형 r = 1 + a·cos θ
+view x[-2.5, 3] y[-2.2, 2.2] equal
+r = 1 + a*cos(theta)
+
+--- 부등식 영역 y ≤ x + k
+view x[-4, 4] y[-4, 4]
+y <= x + k
+
+--- 수열의 극한
+view x[0, 31] y[0, 2.2]
+a_n = 1 + (-1)^n / n, n in [1, 30]
+line((0, 1), 0)
+
+--- 매개변수 타원
+view x[-3, 3] y[-2, 2] equal
+(2cos(s), a*sin(s)), s in [0, 2pi]
 ```
 
 # 파라미터 없는 그래프
 
-`[params]`가 없으면 슬라이더 없이 정적 곡선만 표시된다. `domain`을 생략하면 `[-10, 10]`.
-`display.*`는 **기본이 전부 false** — 이 그래프처럼 아무것도 지정하지 않으면
-readout·호버 요소 없이 곡선만 그려진다.
+param이 없으면 슬라이더 없이 정적 곡선만 표시된다. `view`를 생략하면
+x는 `[-10, 10]`, y는 유한 함숫값 기반 자동 범위.
 
 ```graph
-fn = "x^2 * sin(x) / 10"
+f(x) = x^2 * sin(x) / 10
 ```
 
-# 단위원의 각도와 sin·cos
+# 타원 곡선
 
-1번 칸의 단위원 위 반지름이 각도 `t`(도)를 따라 회전한다. 반지름 끝점의
-y좌표·x좌표가 곧 2·3번 칸의 sin·cos 곡선 값이며(점선 사영으로 표시),
-세 구역이 공통 param `t`에 동기화된다. 2·3번 칸의 `point = "t"` +
-`display.graph.point`는 **param 추적점** — 슬라이더를 움직이면 곡선 위의
-링 마커가 x = t 지점을 따라가고, `f(x)` readout이 그 값을 추적한다(호버 중에는
-호버 지점이 우선). 파형 위 음영은 `0 → t` 구간의 각도 진행.
-x축과 param은 도(°) 단위 — 식에서 `x * pi / 180`으로 변환한다.
-`[[plot]]`이 3개이므로 2×2 배치의 넷째 칸은 빈 칸으로 남는다.
+`y² = x³ + Ax + B` — 음함수 문장 한 줄로 그려진다. 계수 `A`·`B`를 움직이면
+곡선이 한 성분으로 이어지거나 달걀형 성분이 분리되는 형태 변화를 관찰할 수 있다.
+판별식 `−16(4A³ + 27B²)`이 0이 되는 지점(예: A = −3, B = 2)에서는 곡선이
+스스로 만나는 특이점(node)이 나타난다.
 
 ```graph
-domain = [0, 360]
-range = [-1.2, 1.2]
-
-[params]
-t = { default = 45, min = 0, max = 360, step = 1 }
-
-[[plot]]
-kind = "circle"
-title = "단위원 — 반지름의 회전 (θ = t°)"
-angle = "t * pi / 180"
-display.theta = true
-display.cos = true
-display.sin = true
-
-[[plot]]
-title = "sin(x°) — 단위원의 y좌표"
-fn = "sin(x * pi / 180)"
-integral = [0, "t"]
-point = "t"
-display.fx = true
-display.graph.integral = true
-display.graph.point = true
-
-[[plot]]
-title = "cos(x°) — 단위원의 x좌표"
-fn = "cos(x * pi / 180)"
-integral = [0, "t"]
-point = "t"
-display.fx = true
-display.graph.integral = true
-display.graph.point = true
+y^2 = x^3 + A*x + B
+view x[-4, 4] y[-4, 4] equal
+A = -2 : [-5, 5, 0.1]
+B = 1 : [-5, 5, 0.1]
 ```
