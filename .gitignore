@@ -43,8 +43,11 @@ yarn-error.log*
 .pnpm-debug.log*
 reference-files/
 
-# 에이전트용 로컬 개발 노트 — 저장소에 올리지 않는다
-docs/function-graph-devnotes.md
+# 구현 문서 — 로컬에만 기록하고 저장소에는 올리지 않는다
+# (설계·구현 이력: docs/implementation-plan.md, 그래프 DSL 개발 노트: docs/function-graph-devnotes.md,
+#  에이전트 지침: CLAUDE.md)
+docs/
+CLAUDE.md
 
 # OS 임시 파일
 .DS_Store

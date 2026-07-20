@@ -1,9 +1,11 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import BlockEditor, { type BlockEditorHandle } from '../components/editor/BlockEditor'
 import CategoryManager from '../components/editor/CategoryManager'
 import GraphGuide from '../components/editor/GraphGuide'
-import MarkdownToolbar from '../components/editor/MarkdownToolbar'
+import MarkdownToolbar, { type EditorTextApi } from '../components/editor/MarkdownToolbar'
 import MarkdownRenderer from '../components/post/MarkdownRenderer'
 import Panel from '../components/widgets/Panel'
+import { markdownLineBreak } from '../lib/markdownEdit'
 import { invalidatePostIndex } from '../lib/posts'
 import {
   deletePost,
@@ -23,6 +25,10 @@ import {
 function today(): string {
   return new Date().toISOString().slice(0, 10)
 }
+
+/** 본문 편집 모드 — rich: 블록 라이브 편집(일반), code: raw 마크다운 textarea(코드) */
+type EditMode = 'rich' | 'code'
+const MODE_KEY = 'nephthys-editor-mode'
 
 interface StatusMessage {
   text: string
@@ -46,7 +52,32 @@ function EditorPage() {
     preview: DeployPreview
     message: string
   } | null>(null)
+  const [mode, setMode] = useState<EditMode>(() =>
+    localStorage.getItem(MODE_KEY) === 'code' ? 'code' : 'rich',
+  )
   const textareaRef = useRef<HTMLTextAreaElement>(null)
+  const blockRef = useRef<BlockEditorHandle>(null)
+  const modeRef = useRef(mode)
+  useEffect(() => {
+    modeRef.current = mode
+  }, [mode])
+
+  // 도구바가 조작하는 편집 표면 — 모드에 따라 코드 textarea 또는 일반 모드 CM 문서
+  const editorApiRef = useMemo<{ readonly current: EditorTextApi | null }>(
+    () => ({
+      get current() {
+        return modeRef.current === 'rich'
+          ? (blockRef.current?.textApi ?? null)
+          : textareaRef.current
+      },
+    }),
+    [],
+  )
+
+  const changeMode = (next: EditMode) => {
+    setMode(next)
+    localStorage.setItem(MODE_KEY, next)
+  }
 
   const refreshList = useCallback(async () => {
     const { posts: list } = await listPosts()
@@ -157,8 +188,12 @@ function EditorPage() {
     }
   }
 
-  /** 커서 위치에 텍스트 삽입 (도구바의 선택 복원 패턴과 동일) */
+  /** 커서 위치에 텍스트 삽입 — 일반 모드는 BlockEditor에 위임 (도구바의 선택 복원 패턴과 동일) */
   const insertAtCursor = (text: string) => {
+    if (mode === 'rich') {
+      blockRef.current?.insertAtCursor(text)
+      return
+    }
     const ta = textareaRef.current
     if (!ta) return
     const { selectionStart: start, selectionEnd: end, value } = ta
@@ -312,7 +347,11 @@ function EditorPage() {
       {tab === 'guide' && <GraphGuide />}
 
       {/* 탭을 오가도 작성 중인 폼이 유지되도록 언마운트 대신 숨긴다 */}
-      <div className={`editor${tab === 'posts' ? '' : ' editor--hidden'}`}>
+      <div
+        className={`editor${tab === 'posts' ? '' : ' editor--hidden'}${
+          mode === 'rich' ? ' editor--nopreview' : ''
+        }`}
+      >
         <aside className="editor__list">
           <button type="button" className="btn btn--primary" onClick={newPost}>
             + NEW POST
@@ -407,34 +446,57 @@ function EditorPage() {
             </div>
 
             <MarkdownToolbar
-              textareaRef={textareaRef}
+              editorRef={editorApiRef}
               onChange={(content) => updateForm({ content })}
               onUploadImages={(files) => void uploadImages(files)}
+              insertText={insertAtCursor}
+              mode={mode}
+              onModeChange={changeMode}
             />
-            <textarea
-              ref={textareaRef}
-              className="editor__textarea"
-              value={form.content}
-              onChange={(e) => updateForm({ content: e.target.value })}
-              onPaste={(e) => {
-                const files = Array.from(e.clipboardData.files)
-                if (files.some((f) => f.type.startsWith('image/'))) {
+            {mode === 'rich' ? (
+              <BlockEditor
+                key={form.slug}
+                content={form.content}
+                onChange={(content) => updateForm({ content })}
+                handleRef={blockRef}
+                assetBase={`${import.meta.env.BASE_URL}posts/images/${form.slug}/`}
+                onUploadImages={(files) => void uploadImages(files)}
+              />
+            ) : (
+              <textarea
+                ref={textareaRef}
+                className="editor__textarea"
+                value={form.content}
+                onChange={(e) => updateForm({ content: e.target.value })}
+                onKeyDown={(e) => {
+                  // Enter → 마크다운 줄바꿈 문자 삽입 (Shift+Enter는 순수 개행, IME 조합 중은 무시)
+                  if (e.key !== 'Enter' || e.shiftKey || e.nativeEvent.isComposing) return
+                  const ta = e.currentTarget
+                  const brk = markdownLineBreak(ta.value, ta.selectionStart)
+                  if (brk === null) return
                   e.preventDefault()
-                  void uploadImages(files)
-                }
-              }}
-              onDragOver={(e) => {
-                if (e.dataTransfer.types.includes('Files')) e.preventDefault()
-              }}
-              onDrop={(e) => {
-                const files = Array.from(e.dataTransfer.files)
-                if (files.some((f) => f.type.startsWith('image/'))) {
-                  e.preventDefault()
-                  void uploadImages(files)
-                }
-              }}
-              placeholder="Markdown 본문… ($수식$, ```코드```, 표 지원 · 이미지 붙여넣기/드롭 업로드)"
-            />
+                  insertAtCursor(brk)
+                }}
+                onPaste={(e) => {
+                  const files = Array.from(e.clipboardData.files)
+                  if (files.some((f) => f.type.startsWith('image/'))) {
+                    e.preventDefault()
+                    void uploadImages(files)
+                  }
+                }}
+                onDragOver={(e) => {
+                  if (e.dataTransfer.types.includes('Files')) e.preventDefault()
+                }}
+                onDrop={(e) => {
+                  const files = Array.from(e.dataTransfer.files)
+                  if (files.some((f) => f.type.startsWith('image/'))) {
+                    e.preventDefault()
+                    void uploadImages(files)
+                  }
+                }}
+                placeholder="Markdown 본문… ($수식$, ```코드```, 표 지원 · 이미지 붙여넣기/드롭 업로드)"
+              />
+            )}
 
             <div className="editor__toolbar">
               <button type="button" className="btn btn--primary" disabled={busy} onClick={() => void save()}>
@@ -464,7 +526,8 @@ function EditorPage() {
           </Panel>
         )}
 
-        {form && (
+        {/* 일반 모드는 본문 자체가 렌더 뷰이므로 프리뷰 패널은 코드 모드에서만 */}
+        {form && mode === 'code' && (
           <div className="editor__preview">
             <MarkdownRenderer
               content={form.content || '*프리뷰: 본문을 입력하세요.*'}

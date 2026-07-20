@@ -1,11 +1,34 @@
-import { useRef, useState, type RefObject } from 'react'
+import { useRef, useState } from 'react'
 import GraphComposer from './GraphComposer'
 
+/**
+ * 도구바가 조작하는 편집 표면 — 코드 모드의 textarea가 그대로 만족하고,
+ * 일반 모드는 BlockEditor(CodeMirror)가 문서 전체 기준으로 구현해 제공한다.
+ */
+export interface EditorTextApi {
+  value: string
+  readonly selectionStart: number
+  readonly selectionEnd: number
+  focus(): void
+  setSelectionRange(start: number, end: number): void
+}
+
+/** 본문 편집 모드 — rich: 라이브 편집(일반), code: raw 마크다운(코드) */
+export type EditMode = 'rich' | 'code'
+
 interface MarkdownToolbarProps {
-  textareaRef: RefObject<HTMLTextAreaElement | null>
+  editorRef: { readonly current: EditorTextApi | null }
   onChange: (content: string) => void
   /** 이미지 파일 선택 시 업로드 위임 (미지정 시 IMG 버튼 미노출) */
   onUploadImages?: (files: File[]) => void
+  /**
+   * 커서 위치 텍스트 삽입 위임 (GRAPH boilerplate용) — 삽입 규칙이 모드마다
+   * 다른 환경에서 지정한다. 미지정 시 내부 편집 표면 삽입 사용.
+   */
+  insertText?: (text: string) => void
+  /** 도구바 우측 끝의 일반/코드 모드 토글 */
+  mode: EditMode
+  onModeChange: (mode: EditMode) => void
 }
 
 /** 선택 영역에서 Markdown 서식 문법을 제거 */
@@ -28,7 +51,14 @@ function stripFormatting(text: string): string {
  * 텍스트를 선택한 뒤 버튼을 누르면 해당 서식이 적용된다.
  * 가장 좌측은 '스타일 제거' — 선택 영역의 서식 문법을 걷어낸다.
  */
-function MarkdownToolbar({ textareaRef, onChange, onUploadImages }: MarkdownToolbarProps) {
+function MarkdownToolbar({
+  editorRef,
+  onChange,
+  onUploadImages,
+  insertText,
+  mode,
+  onModeChange,
+}: MarkdownToolbarProps) {
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [graphOpen, setGraphOpen] = useState(false)
 
@@ -36,7 +66,7 @@ function MarkdownToolbar({ textareaRef, onChange, onUploadImages }: MarkdownTool
   const commit = (next: string, selStart: number, selEnd: number) => {
     onChange(next)
     requestAnimationFrame(() => {
-      const ta = textareaRef.current
+      const ta = editorRef.current
       if (!ta) return
       ta.focus()
       ta.setSelectionRange(selStart, selEnd)
@@ -45,7 +75,7 @@ function MarkdownToolbar({ textareaRef, onChange, onUploadImages }: MarkdownTool
 
   /** 선택 영역을 prefix/suffix로 감싼다 (B, I, U, S, 코드, 링크) */
   const wrap = (prefix: string, suffix: string) => {
-    const ta = textareaRef.current
+    const ta = editorRef.current
     if (!ta) return
     const { selectionStart: start, selectionEnd: end, value } = ta
     const selected = value.slice(start, end)
@@ -59,7 +89,7 @@ function MarkdownToolbar({ textareaRef, onChange, onUploadImages }: MarkdownTool
    * 기존 제목/인용 접두어는 교체된다.
    */
   const prefixLines = (prefix: string) => {
-    const ta = textareaRef.current
+    const ta = editorRef.current
     if (!ta) return
     const { selectionStart: start, selectionEnd: end, value } = ta
     const lineStart = value.lastIndexOf('\n', start - 1) + 1
@@ -76,7 +106,7 @@ function MarkdownToolbar({ textareaRef, onChange, onUploadImages }: MarkdownTool
 
   /** 커서 위치(선택 영역 대체)에 텍스트 삽입 — GRAPH boilerplate용 */
   const insertAtCursor = (text: string) => {
-    const ta = textareaRef.current
+    const ta = editorRef.current
     if (!ta) return
     const { selectionStart: start, selectionEnd: end, value } = ta
     const next = value.slice(0, start) + text + value.slice(end)
@@ -85,7 +115,7 @@ function MarkdownToolbar({ textareaRef, onChange, onUploadImages }: MarkdownTool
   }
 
   const clearStyle = () => {
-    const ta = textareaRef.current
+    const ta = editorRef.current
     if (!ta) return
     const { selectionStart: start, selectionEnd: end, value } = ta
     const cleaned = stripFormatting(value.slice(start, end))
@@ -176,8 +206,33 @@ function MarkdownToolbar({ textareaRef, onChange, onUploadImages }: MarkdownTool
       >
         GRAPH
       </button>
+      <div className="mdbar__mode" role="tablist" aria-label="본문 편집 모드">
+        <button
+          type="button"
+          role="tab"
+          aria-selected={mode === 'rich'}
+          className={mode === 'rich' ? 'active' : ''}
+          onClick={() => onModeChange('rich')}
+          title="라이브 편집 — 기호는 숨겨지고 스타일로 보인다"
+        >
+          일반
+        </button>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={mode === 'code'}
+          className={mode === 'code' ? 'active' : ''}
+          onClick={() => onModeChange('code')}
+          title="Markdown 원문 편집"
+        >
+          코드
+        </button>
+      </div>
       {graphOpen && (
-        <GraphComposer onInsert={insertAtCursor} onClose={() => setGraphOpen(false)} />
+        <GraphComposer
+          onInsert={insertText ?? insertAtCursor}
+          onClose={() => setGraphOpen(false)}
+        />
       )}
     </div>
   )

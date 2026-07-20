@@ -1518,6 +1518,240 @@ a {
   padding: 4px 20px 20px;
 }
 
+/* 일반 모드 — 본문이 곧 렌더 뷰라 프리뷰 열이 없다 */
+.editor--nopreview {
+  grid-template-columns: 220px minmax(0, 1fr);
+}
+
+/* 본문 편집 모드 토글 — 도구바(mdbar) 우측 끝 (일반 = 라이브 편집, 코드 = raw 마크다운) */
+.mdbar__mode {
+  display: flex;
+  gap: 0;
+  margin-left: auto;
+}
+
+/* 세그먼트 토글 — 가운데 테두리 겹침 제거 */
+.mdbar__mode button + button {
+  margin-left: -1px;
+}
+
+.mdbar__mode button.active {
+  background: var(--nier-dark);
+  color: var(--nier-text-inv);
+}
+
+/* 일반 모드 편집기 — CodeMirror 라이브 프리뷰. 문서 전체가 하나의 캔버스이고
+   마커는 데코레이션이 숨기므로 클릭·편집 전환에도 텍스트가 움직이지 않는다 */
+.blockeditor {
+  background: var(--nier-panel);
+  border: 1px solid var(--nier-dark);
+  cursor: text;
+  /* .markdown 본문과 같은 타이포그래피 기준 */
+  font-size: 1.03125rem;
+}
+
+.blockeditor .cm-editor {
+  outline: none;
+}
+
+.blockeditor .cm-editor.cm-focused {
+  outline: 2px solid var(--nier-dark);
+  outline-offset: -1px;
+}
+
+.blockeditor .cm-scroller {
+  font-family: var(--font-sans);
+  line-height: 1.7;
+  padding: 12px 14px;
+}
+
+.blockeditor .cm-content {
+  min-height: 480px;
+  caret-color: var(--nier-text);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.blockeditor .cm-line {
+  padding: 1px 6px;
+}
+
+.blockeditor .cm-placeholder {
+  color: var(--nier-text-dim);
+}
+
+/* 제목 줄 — .markdown h1~h3와 동일한 크기·장식 (마커는 숨겨져 있다) */
+.blockeditor .cm-h {
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  line-height: 1.4;
+  padding-top: 0.45em;
+}
+
+.blockeditor .cm-h1 {
+  font-size: 1.5625rem;
+  border-bottom: 2px solid var(--nier-dark);
+  padding-bottom: 6px;
+}
+
+.blockeditor .cm-h2 {
+  font-size: 1.3125rem;
+  border-bottom: 1px solid var(--nier-line);
+  padding-bottom: 4px;
+}
+
+.blockeditor .cm-h2::before {
+  content: '';
+  display: inline-block;
+  width: 9px;
+  height: 9px;
+  margin-right: 10px;
+  background: var(--nier-dark);
+  transform: rotate(45deg);
+}
+
+.blockeditor .cm-h3 {
+  font-size: 1.125rem;
+}
+
+/* 인용 줄 — 깊이(--qd)에 비례한 들여쓰기, 연속 줄의 바가 이어져 하나의 인용 상자 */
+.blockeditor .cm-quote {
+  border-left: 4px solid var(--nier-dark);
+  padding-left: calc(18px + (var(--qd, 1) - 1) * 18px);
+}
+
+/* 목록 줄 — 들여쓰기는 인라인 스타일(hanging indent), 마커 장식만 여기서 */
+.blockeditor .cm-bullet {
+  color: var(--nier-text-dim);
+  margin-right: 0.45em;
+}
+
+.blockeditor .cm-listnum {
+  color: var(--nier-text-dim);
+}
+
+/* 인라인 서식 — 마커가 숨겨진 상태의 표시 스타일 */
+.blockeditor .cm-strong {
+  font-weight: 700;
+}
+
+.blockeditor .cm-em {
+  font-style: italic;
+}
+
+.blockeditor .cm-strike {
+  text-decoration: line-through;
+}
+
+.blockeditor .cm-u {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.blockeditor .cm-ic {
+  font-family: var(--font-mono);
+  font-size: 0.875em;
+  background: rgba(69, 65, 56, 0.09);
+  padding: 1px 4px;
+}
+
+.blockeditor .cm-mdlink {
+  text-decoration: underline;
+  text-decoration-color: var(--nier-line);
+  text-underline-offset: 3px;
+}
+
+/* raw로 열린 블록(펜스·수식·표) — 모노스페이스 원문 편집 */
+.blockeditor .cm-rawblock {
+  font-family: var(--font-mono);
+  font-size: 0.875rem;
+  background: rgba(69, 65, 56, 0.06);
+}
+
+/* <br> 스페이서 줄 — 빈 줄로만 보인다 */
+.blockeditor .cm-blankline {
+  padding: 1px 6px;
+}
+
+/* 수평선 위젯 — .markdown hr와 동일한 파선 */
+.blockeditor .cm-mdhr {
+  position: relative;
+  padding: 1px 6px;
+  color: transparent;
+}
+
+.blockeditor .cm-mdhr::after {
+  content: '';
+  position: absolute;
+  left: 6px;
+  right: 6px;
+  top: 50%;
+  height: 1px;
+  background: repeating-linear-gradient(
+    90deg,
+    var(--nier-dark) 0 8px,
+    transparent 8px 14px
+  );
+}
+
+/* 렌더 위젯 — 게시물과 동일한 MarkdownRenderer 출력 */
+.blockeditor__widget {
+  position: relative;
+  padding: 0 6px;
+}
+
+.blockeditor__widget .markdown > :first-child {
+  margin-top: 0.2em;
+}
+
+.blockeditor__widget .markdown > :last-child {
+  margin-bottom: 0.2em;
+}
+
+.blockeditor__widget--image,
+.blockeditor__widget--imath {
+  display: inline-block;
+  vertical-align: middle;
+  padding: 0;
+}
+
+.blockeditor__widget--image .markdown p,
+.blockeditor__widget--imath .markdown p {
+  margin: 0;
+  display: inline;
+}
+
+.blockeditor__widget--block:hover,
+.blockeditor__widget--image:hover {
+  outline: 1px dashed var(--nier-text-dim);
+}
+
+.blockeditor__edit {
+  position: absolute;
+  right: 4px;
+  bottom: 4px;
+  z-index: 3;
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+  letter-spacing: 0.1em;
+  padding: 2px 8px;
+  background: var(--nier-panel);
+  border: 1px solid var(--nier-dark);
+  color: var(--nier-text);
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.12s;
+}
+
+.blockeditor__widget--fence:hover .blockeditor__edit {
+  opacity: 1;
+}
+
+.blockeditor__edit:hover {
+  background: var(--nier-dark);
+  color: var(--nier-text-inv);
+}
+
 /* Deploy dialog */
 .dialog-overlay {
   position: fixed;
