@@ -226,6 +226,26 @@ function EditorPage() {
     }
   }
 
+  /** 도형 모달의 SVG 저장 → 커서 위치에 ![](파일.svg) 삽입. 이미지 업로드와 같은 경로 */
+  const saveDrawing = async (svgText: string, baseName: string): Promise<boolean> => {
+    if (!form) return false
+    // 서버에 게시물 파일이 있어야 저장 위치(공개/초안)가 정해진다
+    if (isNew && !(await save())) return false
+    setBusy(true)
+    try {
+      const file = new File([svgText], `${baseName}.svg`, { type: 'image/svg+xml' })
+      const { file: saved } = await uploadImage(form.slug, file)
+      insertAtCursor(`![](${saved})`)
+      setStatus({ text: `도형 SVG 저장 완료 — ${saved}` })
+      return true
+    } catch (err) {
+      setStatus({ text: (err as Error).message, error: true })
+      return false
+    } finally {
+      setBusy(false)
+    }
+  }
+
   const togglePublish = () => {
     if (!form) return
     const next = !form.draft
@@ -452,6 +472,7 @@ function EditorPage() {
               insertText={insertAtCursor}
               mode={mode}
               onModeChange={changeMode}
+              onSaveDrawing={saveDrawing}
             />
             {mode === 'rich' ? (
               <BlockEditor

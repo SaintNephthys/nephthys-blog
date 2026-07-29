@@ -2515,3 +2515,189 @@ a {
   margin: 0 0 10px;
   font-size: 0.875rem;
 }
+
+/* ============================================================
+   도형 이미지 작성 모달 (DrawComposer) — mdbar '도형' 버튼으로 열린다
+   ============================================================ */
+.mdbar .mdbar__draw {
+  margin-left: 6px;
+}
+
+.drawdlg-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(69, 65, 56, 0.35);
+}
+
+.drawdlg {
+  display: flex;
+  flex-direction: column;
+  width: min(1060px, 96vw);
+  max-height: 94vh;
+  background: var(--nier-panel);
+  border: 1px solid var(--nier-line);
+  box-shadow: 6px 6px 0 rgba(69, 65, 56, 0.3);
+}
+
+.drawdlg__title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 12px;
+  background: var(--nier-dark);
+  color: var(--nier-text-inv);
+  font-family: var(--font-mono);
+  font-size: 0.8125rem;
+  letter-spacing: 0.1em;
+}
+
+.drawdlg__close {
+  background: none;
+  border: none;
+  color: var(--nier-text-inv);
+  font-size: 0.875rem;
+  cursor: pointer;
+  padding: 0 2px;
+}
+
+.drawdlg__tools {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--nier-line-soft);
+}
+
+.drawdlg__tools button {
+  font-size: 0.75rem;
+  min-width: 30px;
+  padding: 3px 8px;
+  background: var(--nier-panel);
+  border: 1px solid var(--nier-dark);
+  color: var(--nier-text);
+  cursor: pointer;
+}
+
+.drawdlg__tools button:hover:not(:disabled) {
+  background: var(--nier-dark);
+  color: var(--nier-text-inv);
+}
+
+.drawdlg__tools button.active {
+  background: var(--nier-dark);
+  color: var(--nier-text-inv);
+}
+
+.drawdlg__tools button:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.drawdlg__sep {
+  width: 1px;
+  height: 18px;
+  background: var(--nier-line-soft);
+  margin: 0 4px;
+}
+
+/* 팔레트 칩 — 채움/테두리 색 미리보기 */
+.drawdlg__chip {
+  padding: 3px !important;
+  min-width: 0 !important;
+}
+
+.drawdlg__chip span {
+  display: block;
+  width: 16px;
+  height: 16px;
+  border: 2px solid;
+}
+
+.drawdlg__chip.active {
+  background: var(--nier-dark) !important;
+}
+
+.drawdlg__canvas {
+  position: relative;
+  margin: 10px;
+  border: 1px solid var(--nier-dark);
+  background:
+    linear-gradient(var(--nier-bg-dim) 1px, transparent 1px),
+    linear-gradient(90deg, var(--nier-bg-dim) 1px, transparent 1px),
+    var(--nier-bg);
+  background-size: 24px 24px, 24px 24px, auto;
+}
+
+.drawdlg__canvas svg {
+  display: block;
+  width: 100%;
+  touch-action: none;
+}
+
+.drawdlg__canvas svg[data-tool='select'] {
+  cursor: default;
+}
+
+.drawdlg__canvas svg:not([data-tool='select']) {
+  cursor: crosshair;
+}
+
+.drawdlg__canvas svg [data-id] {
+  cursor: move;
+}
+
+.drawdlg__canvas svg [data-handle] {
+  cursor: nwse-resize;
+}
+
+/* 라벨 편집 오버레이 — 도형 중앙(%)에 배치 */
+.drawdlg__edit {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  min-width: 120px;
+  padding: 3px 6px;
+  font-size: 0.875rem;
+  text-align: center;
+  background: var(--nier-panel);
+  border: 1px solid var(--nier-dark);
+  color: var(--nier-text);
+}
+
+.drawdlg__footer {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border-top: 1px solid var(--nier-line-soft);
+}
+
+.drawdlg__saved {
+  margin-right: auto;
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+  color: var(--nier-text-dim);
+}
+
+.drawdlg__name {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  color: var(--nier-text-dim);
+}
+
+.drawdlg__name input {
+  width: 130px;
+  padding: 3px 6px;
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  background: var(--nier-panel);
+  border: 1px solid var(--nier-dark);
+  color: var(--nier-text);
+}
