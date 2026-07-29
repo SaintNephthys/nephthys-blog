@@ -18,6 +18,8 @@ interface BlockEditorProps {
   handleRef: RefObject<BlockEditorHandle | null>
   assetBase?: string
   onUploadImages?: (files: File[]) => void
+  /** 로컬 도형 svg 이미지 위젯의 '도형 EDIT' 칩 → DrawComposer 열기 */
+  onEditDrawing?: (name: string) => void
 }
 
 /**
@@ -32,12 +34,13 @@ function BlockEditor({
   handleRef,
   assetBase,
   onUploadImages,
+  onEditDrawing,
 }: BlockEditorProps) {
   const hostRef = useRef<HTMLDivElement>(null)
   const viewRef = useRef<EditorView | null>(null)
-  const stateRef = useRef({ content, onChange, onUploadImages })
+  const stateRef = useRef({ content, onChange, onUploadImages, onEditDrawing })
   useLayoutEffect(() => {
-    stateRef.current = { content, onChange, onUploadImages }
+    stateRef.current = { content, onChange, onUploadImages, onEditDrawing }
   })
 
   useEffect(() => {
@@ -46,7 +49,8 @@ function BlockEditor({
       state: EditorState.create({
         doc: stateRef.current.content,
         extensions: [
-          livePreview({ assetBase }),
+          // onEditDrawing은 stable 래퍼로 넘긴다 — 위젯 eq가 콜백을 비교하지 않는 전제
+          livePreview({ assetBase, onEditDrawing: (name) => stateRef.current.onEditDrawing?.(name) }),
           EditorView.updateListener.of((u) => {
             if (u.docChanged) stateRef.current.onChange(u.state.doc.toString())
           }),

@@ -1751,6 +1751,15 @@ a {
   opacity: 1;
 }
 
+/* 로컬 도형 svg 이미지의 hover '도형 EDIT' 칩 — 인라인 위젯이라 span 기준 배치 */
+.blockeditor__widget--image {
+  position: relative;
+}
+
+.blockeditor__widget--image:hover .blockeditor__edit--draw {
+  opacity: 1;
+}
+
 .blockeditor__edit:hover {
   background: var(--nier-dark);
   color: var(--nier-text-inv);
@@ -2622,15 +2631,12 @@ a {
   background: var(--nier-dark) !important;
 }
 
+/* 격자는 SVG 패턴으로 논리 좌표에 그린다(스냅과 일치) — 배경색만 CSS 담당 */
 .drawdlg__canvas {
   position: relative;
   margin: 10px;
   border: 1px solid var(--nier-dark);
-  background:
-    linear-gradient(var(--nier-bg-dim) 1px, transparent 1px),
-    linear-gradient(90deg, var(--nier-bg-dim) 1px, transparent 1px),
-    var(--nier-bg);
-  background-size: 24px 24px, 24px 24px, auto;
+  background: var(--nier-bg);
 }
 
 .drawdlg__canvas svg {
@@ -2655,14 +2661,26 @@ a {
   cursor: nwse-resize;
 }
 
-/* 라벨 편집 오버레이 — 도형 중앙(%)에 배치 */
+/* 라벨 편집 오버레이 — 도형 중앙(%)에 배치. Shift+Enter 다중 줄 */
 .drawdlg__edit {
   position: absolute;
   transform: translate(-50%, -50%);
   min-width: 120px;
   padding: 3px 6px;
   font-size: 0.875rem;
+  font-family: var(--font-sans);
   text-align: center;
+  background: var(--nier-panel);
+  border: 1px solid var(--nier-dark);
+  color: var(--nier-text);
+  resize: none;
+  overflow: hidden;
+}
+
+.drawdlg__load {
+  padding: 3px 6px;
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
   background: var(--nier-panel);
   border: 1px solid var(--nier-dark);
   color: var(--nier-text);

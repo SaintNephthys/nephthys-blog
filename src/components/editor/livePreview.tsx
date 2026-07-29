@@ -51,24 +51,39 @@ type WidgetKind = 'fence' | 'block' | 'image' | 'imath'
 
 const widgetRoots = new WeakMap<HTMLElement, Root>()
 
+/** 위젯이 참조하는 편집기 설정 — assetBase만 위젯 동일성(eq)에 참여한다 */
+interface WidgetConfig {
+  assetBase?: string
+  /** 로컬 도형 svg(![](x.svg))의 hover 칩 → DrawComposer 열기 (BlockEditor의 stable 래퍼) */
+  onEditDrawing?: (name: string) => void
+}
+
+/** 이미지 참조가 로컬 도형 svg면 파일명 반환 (외부 URL·절대 경로 제외) */
+function localSvgName(source: string): string | null {
+  const m = /\]\(([^)\s]+)(?:\s+"[^"]*")?\)\s*$/.exec(source)
+  if (!m) return null
+  return /^[^/:?#]+\.svg$/i.test(m[1]) ? m[1] : null
+}
+
 /** 마크다운 조각을 게시물과 동일한 MarkdownRenderer로 그리는 위젯 */
 class RenderWidget extends WidgetType {
   readonly source: string
   readonly kind: WidgetKind
-  readonly assetBase?: string
+  readonly config: WidgetConfig
 
-  constructor(source: string, kind: WidgetKind, assetBase?: string) {
+  constructor(source: string, kind: WidgetKind, config: WidgetConfig) {
     super()
     this.source = source
     this.kind = kind
-    this.assetBase = assetBase
+    this.config = config
   }
 
   eq(other: RenderWidget) {
+    // onEditDrawing은 BlockEditor가 stable 래퍼로 보장하므로 비교에서 제외
     return (
       other.source === this.source &&
       other.kind === this.kind &&
-      other.assetBase === this.assetBase
+      other.config.assetBase === this.config.assetBase
     )
   }
 
@@ -78,9 +93,11 @@ class RenderWidget extends WidgetType {
     wrap.className = `blockeditor__widget blockeditor__widget--${this.kind}`
     const root = createRoot(wrap)
     widgetRoots.set(wrap, root)
+    const drawName =
+      this.kind === 'image' && this.config.onEditDrawing ? localSvgName(this.source) : null
     root.render(
       <>
-        <MarkdownRenderer content={this.source} assetBase={this.assetBase} />
+        <MarkdownRenderer content={this.source} assetBase={this.config.assetBase} />
         {this.kind === 'fence' && (
           <button
             type="button"
@@ -102,6 +119,16 @@ class RenderWidget extends WidgetType {
             EDIT
           </button>
         )}
+        {drawName && (
+          <button
+            type="button"
+            className="blockeditor__edit blockeditor__edit--draw"
+            title={`${drawName} 도형 편집`}
+            onClick={() => this.config.onEditDrawing?.(drawName)}
+          >
+            도형 EDIT
+          </button>
+        )}
       </>,
     )
     return wrap
@@ -112,10 +139,12 @@ class RenderWidget extends WidgetType {
     queueMicrotask(() => widgetRoots.get(dom)?.unmount())
   }
 
-  ignoreEvent() {
+  ignoreEvent(event: Event) {
     // 펜스 위젯 내부(그래프 슬라이더·COPY·EDIT)는 CM이 개입하지 않는다.
-    // 그 외에는 클릭이 CM으로 흘러 커서가 놓이고 → raw가 열린다.
-    return this.kind === 'fence'
+    // 이미지의 도형 EDIT 칩도 마찬가지 — 그 외에는 클릭이 CM으로 흘러
+    // 커서가 놓이고 → raw가 열린다.
+    if (this.kind === 'fence') return true
+    return event.target instanceof Element && event.target.closest('.blockeditor__edit') !== null
   }
 }
 
@@ -193,7 +222,7 @@ interface PreviewSets {
 }
 
 /** 상태 → 데코레이션. 선택이 닿은 구간은 raw로 열리므로 선택 변경 때마다 재계산한다 */
-function build(state: EditorState, assetBase?: string): PreviewSets {
+function build(state: EditorState, config: WidgetConfig): PreviewSets {
   const deco: Range<Decoration>[] = []
   const atoms: Range<Decoration>[] = []
   const doc = state.doc
@@ -226,7 +255,7 @@ function build(state: EditorState, assetBase?: string): PreviewSets {
   const blockWidget = (from: number, to: number, kind: WidgetKind) => {
     deco.push(
       Decoration.replace({
-        widget: new RenderWidget(text.slice(from, to), kind, assetBase),
+        widget: new RenderWidget(text.slice(from, to), kind, config),
         block: true,
       }).range(from, to),
     )
@@ -346,7 +375,7 @@ function build(state: EditorState, assetBase?: string): PreviewSets {
         case 'Image': {
           if (!touches(n.from, n.to)) {
             const d = Decoration.replace({
-              widget: new RenderWidget(text.slice(n.from, n.to), 'image', assetBase),
+              widget: new RenderWidget(text.slice(n.from, n.to), 'image', config),
             })
             deco.push(d.range(n.from, n.to))
             atoms.push(d.range(n.from, n.to))
@@ -394,7 +423,7 @@ function build(state: EditorState, assetBase?: string): PreviewSets {
       if (overlaps(inlineCodes, s, e)) continue
       if (!touches(s, e)) {
         const d = Decoration.replace({
-          widget: new RenderWidget(m[0], 'imath', assetBase),
+          widget: new RenderWidget(m[0], 'imath', config),
         })
         deco.push(d.range(s, e))
         atoms.push(d.range(s, e))
@@ -487,14 +516,16 @@ const plainEnter: Command = (view) => {
 
 export interface LivePreviewConfig {
   assetBase?: string
+  /** 로컬 도형 svg 이미지의 '도형 EDIT' 칩 콜백 — stable 참조여야 한다 */
+  onEditDrawing?: (name: string) => void
 }
 
 /** 일반 모드 에디터 확장 세트 — BlockEditor가 EditorView에 그대로 넘긴다 */
-export function livePreview({ assetBase }: LivePreviewConfig): Extension {
+export function livePreview(config: LivePreviewConfig): Extension {
   const field = StateField.define<PreviewSets>({
-    create: (state) => build(state, assetBase),
+    create: (state) => build(state, config),
     update: (value, tr) =>
-      tr.docChanged || tr.selection ? build(tr.state, assetBase) : value,
+      tr.docChanged || tr.selection ? build(tr.state, config) : value,
     provide: (f) => [
       EditorView.decorations.from(f, (v) => v.deco),
       EditorView.atomicRanges.of((view) => view.state.field(f).atomic),

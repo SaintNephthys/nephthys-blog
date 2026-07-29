@@ -86,15 +86,23 @@ export function deleteCategory(name: string): Promise<{ categories: CategoryInfo
 }
 
 /** 이미지 업로드 — 서버가 WebP(q80)로 변환해 게시물의 이미지 디렉터리에 저장한다 */
-export function uploadImage(slug: string, file: File): Promise<{ file: string }> {
+export function uploadImage(
+  slug: string,
+  file: File,
+  overwrite = false,
+): Promise<{ file: string }> {
   return request(
-    `/api/images/${encodeURIComponent(slug)}?name=${encodeURIComponent(file.name)}`,
+    `/api/images/${encodeURIComponent(slug)}?name=${encodeURIComponent(file.name)}${overwrite ? '&overwrite=1' : ''}`,
     {
       method: 'POST',
       headers: { 'Content-Type': 'application/octet-stream' },
       body: file,
     },
   )
+}
+
+export function listImages(slug: string): Promise<{ files: string[] }> {
+  return request(`/api/images/${encodeURIComponent(slug)}`)
 }
 
 export function fetchDeployPreview(): Promise<DeployPreview> {

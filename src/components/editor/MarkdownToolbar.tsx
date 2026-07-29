@@ -1,5 +1,4 @@
 import { useRef, useState } from 'react'
-import DrawComposer from './DrawComposer'
 import GraphComposer from './GraphComposer'
 
 /**
@@ -30,8 +29,8 @@ interface MarkdownToolbarProps {
   /** 도구바 우측 끝의 일반/코드 모드 토글 */
   mode: EditMode
   onModeChange: (mode: EditMode) => void
-  /** 도형 SVG 저장 + 게시물 삽입 위임 (미지정 시 도형 버튼 미노출) */
-  onSaveDrawing?: (svgText: string, baseName: string) => Promise<boolean>
+  /** 도형 모달 열기 (모달은 EditorPage 소유 — 본문 '도형 EDIT' 칩과 공유). 미지정 시 버튼 미노출 */
+  onOpenDrawing?: () => void
 }
 
 /** 선택 영역에서 Markdown 서식 문법을 제거 */
@@ -61,11 +60,10 @@ function MarkdownToolbar({
   insertText,
   mode,
   onModeChange,
-  onSaveDrawing,
+  onOpenDrawing,
 }: MarkdownToolbarProps) {
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [graphOpen, setGraphOpen] = useState(false)
-  const [drawOpen, setDrawOpen] = useState(false)
 
   /** 변경된 본문을 반영하고 지정 구간을 다시 선택 상태로 만든다 */
   const commit = (next: string, selStart: number, selEnd: number) => {
@@ -233,12 +231,12 @@ function MarkdownToolbar({
           코드
         </button>
       </div>
-      {onSaveDrawing && (
+      {onOpenDrawing && (
         <button
           type="button"
           className="mdbar__draw"
           title="도형 이미지 작성 (SVG 저장 후 삽입)"
-          onClick={() => setDrawOpen(true)}
+          onClick={onOpenDrawing}
         >
           도형
         </button>
@@ -248,9 +246,6 @@ function MarkdownToolbar({
           onInsert={insertText ?? insertAtCursor}
           onClose={() => setGraphOpen(false)}
         />
-      )}
-      {drawOpen && onSaveDrawing && (
-        <DrawComposer onApply={onSaveDrawing} onClose={() => setDrawOpen(false)} />
       )}
     </div>
   )

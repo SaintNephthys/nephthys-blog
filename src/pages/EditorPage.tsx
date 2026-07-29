@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import BlockEditor, { type BlockEditorHandle } from '../components/editor/BlockEditor'
 import CategoryManager from '../components/editor/CategoryManager'
+import DrawComposer from '../components/editor/DrawComposer'
 import GraphGuide from '../components/editor/GraphGuide'
 import MarkdownToolbar, { type EditorTextApi } from '../components/editor/MarkdownToolbar'
 import MarkdownRenderer from '../components/post/MarkdownRenderer'
@@ -13,6 +14,7 @@ import {
   fetchDeployPreview,
   getPost,
   listCategories,
+  listImages,
   listPosts,
   savePost,
   uploadImage,
@@ -55,6 +57,8 @@ function EditorPage() {
   const [mode, setMode] = useState<EditMode>(() =>
     localStorage.getItem(MODE_KEY) === 'code' ? 'code' : 'rich',
   )
+  // 도형 모달 — initialFile이 있으면 해당 svg를 열어 편집(본문 '도형 EDIT' 칩 진입)
+  const [draw, setDraw] = useState<{ initialFile: string | null } | null>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const blockRef = useRef<BlockEditorHandle>(null)
   const modeRef = useRef(mode)
@@ -226,24 +230,38 @@ function EditorPage() {
     }
   }
 
-  /** 도형 모달의 SVG 저장 → 커서 위치에 ![](파일.svg) 삽입. 이미지 업로드와 같은 경로 */
-  const saveDrawing = async (svgText: string, baseName: string): Promise<boolean> => {
-    if (!form) return false
-    // 서버에 게시물 파일이 있어야 저장 위치(공개/초안)가 정해진다
-    if (isNew && !(await save())) return false
-    setBusy(true)
-    try {
-      const file = new File([svgText], `${baseName}.svg`, { type: 'image/svg+xml' })
-      const { file: saved } = await uploadImage(form.slug, file)
-      insertAtCursor(`![](${saved})`)
-      setStatus({ text: `도형 SVG 저장 완료 — ${saved}` })
-      return true
-    } catch (err) {
-      setStatus({ text: (err as Error).message, error: true })
-      return false
-    } finally {
-      setBusy(false)
-    }
+  /** 도형 모달 위임 — 저장(신규는 커서에 ![](파일.svg) 삽입, 덮어쓰기는 삽입 생략)·목록·불러오기 */
+  const drawingApi = {
+    save: async (svgText: string, baseName: string, overwrite: boolean): Promise<boolean> => {
+      if (!form) return false
+      // 서버에 게시물 파일이 있어야 저장 위치(공개/초안)가 정해진다
+      if (isNew && !(await save())) return false
+      setBusy(true)
+      try {
+        const file = new File([svgText], `${baseName}.svg`, { type: 'image/svg+xml' })
+        const { file: saved } = await uploadImage(form.slug, file, overwrite)
+        if (!overwrite) insertAtCursor(`![](${saved})`)
+        setStatus({ text: `도형 SVG ${overwrite ? '덮어쓰기' : '저장'} 완료 — ${saved}` })
+        return true
+      } catch (err) {
+        setStatus({ text: (err as Error).message, error: true })
+        return false
+      } finally {
+        setBusy(false)
+      }
+    },
+    list: async (): Promise<string[]> => {
+      if (!form) return []
+      const { files } = await listImages(form.slug)
+      return files
+    },
+    load: async (name: string): Promise<string | null> => {
+      if (!form || name.includes('/') || name.includes('..')) return null
+      const res = await fetch(
+        `${import.meta.env.BASE_URL}posts/images/${encodeURIComponent(form.slug)}/${encodeURIComponent(name)}`,
+      )
+      return res.ok ? res.text() : null
+    },
   }
 
   const togglePublish = () => {
@@ -472,7 +490,7 @@ function EditorPage() {
               insertText={insertAtCursor}
               mode={mode}
               onModeChange={changeMode}
-              onSaveDrawing={saveDrawing}
+              onOpenDrawing={() => setDraw({ initialFile: null })}
             />
             {mode === 'rich' ? (
               <BlockEditor
@@ -482,6 +500,7 @@ function EditorPage() {
                 handleRef={blockRef}
                 assetBase={`${import.meta.env.BASE_URL}posts/images/${form.slug}/`}
                 onUploadImages={(files) => void uploadImages(files)}
+                onEditDrawing={(name) => setDraw({ initialFile: name })}
               />
             ) : (
               <textarea
@@ -557,6 +576,14 @@ function EditorPage() {
           </div>
         )}
       </div>
+
+      {draw && form && (
+        <DrawComposer
+          api={drawingApi}
+          initialFile={draw.initialFile}
+          onClose={() => setDraw(null)}
+        />
+      )}
 
       {deployInfo && (
         <DeployDialog

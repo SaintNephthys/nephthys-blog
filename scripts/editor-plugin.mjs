@@ -12,9 +12,12 @@
  *   POST   /api/categories           카테고리 추가 (content/categories.json 기록)
  *   PUT    /api/categories/:name     카테고리 이름 수정 (사용 중인 게시물 frontmatter도 일괄 갱신)
  *   DELETE /api/categories/:name     카테고리 삭제 (게시물이 사용 중이면 409)
+ *   GET    /api/images/:slug         게시물 이미지 파일 목록
  *   POST   /api/images/:slug         이미지 업로드 (?name=원본명, body: 바이너리)
  *                                    → WebP(q80, 최대 폭 1600px) 변환 후 게시물의
  *                                    이미지 디렉터리에 저장 (초안은 gitignore 영역)
+ *                                    SVG는 원본 유지, ?overwrite=1이면 같은 이름을
+ *                                    덮어쓴다(도형 에디터의 재편집 저장용)
  *   GET    /api/deploy/preview       배포 시 공개 상태가 바뀌는 게시물 목록
  *   POST   /api/deploy               git add → commit → push (Actions가 배포)
  */
@@ -211,18 +214,33 @@ function loadSharp() {
 }
 
 /** 업로드 원본을 게시물의 이미지 디렉터리에 저장. 래스터는 WebP(q80)로 재인코딩. */
-async function saveImage(slug, originalName, buffer) {
+/** 게시물의 이미지 디렉터리 경로 (초안/공개 자동 판별) — 게시물이 없으면 null */
+function imageDirOf(slug) {
   const found = findPost(slug)
-  if (!found) {
+  if (!found) return null
+  return found.draft ? imageDirs(slug).draft : imageDirs(slug).published
+}
+
+function listImages(slug) {
+  const dir = imageDirOf(slug)
+  if (!dir || !fs.existsSync(dir)) return []
+  return fs
+    .readdirSync(dir)
+    .filter((f) => IMAGE_MIME[path.extname(f).toLowerCase()])
+    .sort()
+}
+
+async function saveImage(slug, originalName, buffer, overwrite = false) {
+  const dir = imageDirOf(slug)
+  if (!dir) {
     throw Object.assign(new Error('게시물을 먼저 저장하세요.'), { status: 400 })
   }
-  const dir = found.draft ? imageDirs(slug).draft : imageDirs(slug).published
   fs.mkdirSync(dir, { recursive: true })
   const base = sanitizeImageName(originalName)
 
   // SVG는 벡터 그대로 저장, 그 외 래스터는 WebP 변환(재인코딩 과정에서 EXIF도 제거된다)
   if (/\.svg$/i.test(originalName ?? '')) {
-    const file = uniqueImageName(dir, base, '.svg')
+    const file = overwrite ? `${base}.svg` : uniqueImageName(dir, base, '.svg')
     fs.writeFileSync(path.join(dir, file), buffer)
     return file
   }
@@ -494,13 +512,18 @@ async function handleRequest(req, res) {
 
   if (segments[1] === 'images') {
     const slug = segments[2] ? decodeURIComponent(segments[2]) : null
+    if (req.method === 'GET' && slug) {
+      assertSlug(slug)
+      return sendJson(res, 200, { files: listImages(slug) })
+    }
     if (req.method === 'POST' && slug) {
       assertSlug(slug)
       const name = url.searchParams.get('name') ?? ''
+      const overwrite = url.searchParams.get('overwrite') === '1'
       const buffer = await readRawBody(req, MAX_IMAGE_BYTES)
       if (buffer.length === 0)
         return sendJson(res, 400, { error: '이미지 데이터가 비어 있습니다.' })
-      const file = await saveImage(slug, name, buffer)
+      const file = await saveImage(slug, name, buffer, overwrite)
       return sendJson(res, 200, { file })
     }
   }

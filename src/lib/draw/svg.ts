@@ -127,27 +127,81 @@ function isFiniteNum(v: unknown): v is number {
   return typeof v === 'number' && Number.isFinite(v)
 }
 
-function validShape(s: unknown): s is Shape {
-  if (typeof s !== 'object' || s === null) return false
+/** 도형 하나의 검증 오류 메시지 목록 (빈 배열 = 유효) */
+function shapeErrors(s: unknown, i: number): string[] {
+  const at = `shapes[${i}]`
+  if (typeof s !== 'object' || s === null) return [`${at}: 객체가 아닙니다`]
   const o = s as Record<string, unknown>
-  if (typeof o.id !== 'string' || !isRoleKey(o.role)) return false
-  if (!isFiniteNum(o.strokeWidth) || typeof o.dashed !== 'boolean') return false
+  const errors: string[] = []
+  if (typeof o.id !== 'string' || o.id === '') errors.push(`${at}.id: 비어 있지 않은 문자열 필요`)
+  if (!isRoleKey(o.role)) errors.push(`${at}.role: 알 수 없는 팔레트 role '${String(o.role)}'`)
+  if (!isFiniteNum(o.strokeWidth)) errors.push(`${at}.strokeWidth: 유한 숫자 필요`)
+  if (typeof o.dashed !== 'boolean') errors.push(`${at}.dashed: boolean 필요`)
+  const num = (key: string) => {
+    if (!isFiniteNum(o[key])) errors.push(`${at}.${key}: 유한 숫자 필요`)
+  }
   switch (o.kind) {
     case 'rect':
     case 'ellipse':
-      return (
-        isFiniteNum(o.x) && isFiniteNum(o.y) && isFiniteNum(o.w) && isFiniteNum(o.h) &&
-        (o.text === undefined || typeof o.text === 'string')
-      )
+      for (const k of ['x', 'y', 'w', 'h']) num(k)
+      if (o.text !== undefined && typeof o.text !== 'string')
+        errors.push(`${at}.text: 문자열 또는 생략`)
+      break
     case 'line':
-      return (
-        isFiniteNum(o.x1) && isFiniteNum(o.y1) && isFiniteNum(o.x2) && isFiniteNum(o.y2) &&
-        typeof o.arrow === 'boolean'
-      )
+      for (const k of ['x1', 'y1', 'x2', 'y2']) num(k)
+      if (typeof o.arrow !== 'boolean') errors.push(`${at}.arrow: boolean 필요`)
+      if (o.boundStart !== undefined && typeof o.boundStart !== 'string')
+        errors.push(`${at}.boundStart: 도형 id 문자열 또는 생략`)
+      if (o.boundEnd !== undefined && typeof o.boundEnd !== 'string')
+        errors.push(`${at}.boundEnd: 도형 id 문자열 또는 생략`)
+      break
     case 'text':
-      return isFiniteNum(o.x) && isFiniteNum(o.y) && typeof o.text === 'string' && isFiniteNum(o.size)
+      for (const k of ['x', 'y', 'size']) num(k)
+      if (typeof o.text !== 'string') errors.push(`${at}.text: 문자열 필요`)
+      break
     default:
-      return false
+      errors.push(`${at}.kind: 알 수 없는 종류 '${String(o.kind)}' (rect|ellipse|line|text)`)
+  }
+  return errors
+}
+
+/**
+ * JSON 값의 문서 검증 오류 목록 (빈 배열 = 유효). CLI·MCP가 에이전트에게
+ * 행 단위로 짚어 주기 위한 시끄러운 검증 — 조용한 오해석 금지 원칙.
+ */
+export function docErrors(value: unknown): string[] {
+  if (typeof value !== 'object' || value === null) return ['문서가 객체가 아닙니다']
+  const doc = value as Record<string, unknown>
+  const errors: string[] = []
+  if (doc.version !== DRAW_DOC_VERSION)
+    errors.push(`version: ${DRAW_DOC_VERSION} 필요 (받음: ${String(doc.version)})`)
+  if (!isFiniteNum(doc.width)) errors.push('width: 유한 숫자 필요')
+  if (!isFiniteNum(doc.height)) errors.push('height: 유한 숫자 필요')
+  if (!Array.isArray(doc.shapes)) {
+    errors.push('shapes: 배열 필요')
+    return errors
+  }
+  const ids = new Set<string>()
+  doc.shapes.forEach((s, i) => {
+    errors.push(...shapeErrors(s, i))
+    const id = (s as Record<string, unknown> | null)?.id
+    if (typeof id === 'string') {
+      if (ids.has(id)) errors.push(`shapes[${i}].id: 중복 id '${id}'`)
+      ids.add(id)
+    }
+  })
+  return errors
+}
+
+/** JSON 값 → 문서. 검증 실패 시 null (오류 내용은 docErrors로) */
+export function docFromJson(value: unknown): DrawDoc | null {
+  if (docErrors(value).length > 0) return null
+  const doc = value as { width: number; height: number; shapes: Shape[] }
+  return {
+    version: DRAW_DOC_VERSION,
+    width: doc.width,
+    height: doc.height,
+    shapes: doc.shapes,
   }
 }
 
@@ -159,18 +213,7 @@ export function svgToDoc(svgText: string): DrawDoc | null {
   const match = new RegExp(`<metadata id="${METADATA_ID}">([\\s\\S]*?)</metadata>`).exec(svgText)
   if (!match) return null
   try {
-    const parsed: unknown = JSON.parse(unescapeXml(match[1]))
-    if (typeof parsed !== 'object' || parsed === null) return null
-    const doc = parsed as Record<string, unknown>
-    if (doc.version !== DRAW_DOC_VERSION) return null
-    if (!isFiniteNum(doc.width) || !isFiniteNum(doc.height)) return null
-    if (!Array.isArray(doc.shapes) || !doc.shapes.every(validShape)) return null
-    return {
-      version: DRAW_DOC_VERSION,
-      width: doc.width,
-      height: doc.height,
-      shapes: doc.shapes,
-    }
+    return docFromJson(JSON.parse(unescapeXml(match[1])))
   } catch {
     return null
   }

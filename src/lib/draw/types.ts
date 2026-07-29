@@ -50,6 +50,14 @@ export interface LineShape extends ShapeBase {
   x2: number
   y2: number
   arrow: boolean
+  /**
+   * 끝점 바인딩(v1 widening) — 사각형/타원 도형 id 참조. 바인딩된 끝점의
+   * x/y에는 항상 **해석된(resolved) 좌표**가 저장된다(reflowBindings가 유지) —
+   * 내보내기·bbox가 문서 맥락 없이 성립하기 위한 불변식. 대상 소실 시 바인딩만
+   * 해제되고 좌표는 남는다.
+   */
+  boundStart?: string
+  boundEnd?: string
 }
 
 /** 텍스트 — (x, y)는 첫 줄 베이스라인 좌측 기준 */
