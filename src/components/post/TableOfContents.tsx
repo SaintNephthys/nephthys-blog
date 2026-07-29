@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import GithubSlugger from 'github-slugger'
 
 interface TocEntry {
@@ -35,9 +35,45 @@ interface TableOfContentsProps {
   content: string
 }
 
-/** 게시물 우측의 목차 — 클릭 시 해당 섹션으로 스크롤 */
+/** 게시물 우측의 목차 — 클릭 시 해당 섹션으로 스크롤, 현재 보는 섹션은 볼드 표시 */
 function TableOfContents({ content }: TableOfContentsProps) {
   const headings = useMemo(() => extractHeadings(content), [content])
+  const [activeId, setActiveId] = useState<string | null>(null)
+
+  useEffect(() => {
+    const topbarH =
+      parseFloat(
+        getComputedStyle(document.documentElement).getPropertyValue('--topbar-h'),
+      ) || 52
+
+    const compute = () => {
+      const doc = document.documentElement
+      // 문서 끝에서는 화면 상단에 닿지 못하는 마지막 섹션을 현재로 취급
+      if (window.innerHeight + window.scrollY >= doc.scrollHeight - 2) {
+        setActiveId(headings.length > 0 ? headings[headings.length - 1].id : null)
+        return
+      }
+      // 헤더의 scroll-margin-top(topbar+16px)으로 정렬된 위치가 포함되도록 여유를 둔다
+      const threshold = topbarH + 24
+      let current: string | null = null
+      for (const h of headings) {
+        const el = document.getElementById(h.id)
+        if (!el) continue
+        if (el.getBoundingClientRect().top <= threshold) current = h.id
+        else break
+      }
+      setActiveId(current)
+    }
+
+    const raf = requestAnimationFrame(compute)
+    window.addEventListener('scroll', compute, { passive: true })
+    window.addEventListener('resize', compute)
+    return () => {
+      cancelAnimationFrame(raf)
+      window.removeEventListener('scroll', compute)
+      window.removeEventListener('resize', compute)
+    }
+  }, [headings])
 
   if (headings.length === 0) return null
 
@@ -54,6 +90,7 @@ function TableOfContents({ content }: TableOfContentsProps) {
           <li key={h.id}>
             <a
               href={`#${h.id}`}
+              aria-current={activeId === h.id ? 'location' : undefined}
               onClick={(e) => {
                 e.preventDefault()
                 jump(h.id)

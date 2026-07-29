@@ -930,6 +930,10 @@ a {
   background: var(--nier-text-inv);
 }
 
+.toc a[aria-current='location'] {
+  font-weight: 700;
+}
+
 @media (max-width: 1200px) {
   .toc {
     display: none;
