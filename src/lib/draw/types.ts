@@ -22,24 +22,37 @@ interface ShapeBase {
   dashed: boolean
 }
 
-/** 사각형(모서리 둥긂) — text는 중앙 라벨 */
-export interface RectShape extends ShapeBase {
+/**
+ * 텍스트 스타일(v1 widening) — 라벨·텍스트 도형 공통 선택 필드.
+ * 생략 = 기본(보통 굵기·정체·본문 글꼴). 색은 여전히 role이 정한다.
+ */
+export interface TextStyle {
+  bold?: boolean
+  italic?: boolean
+  /** 코드체(IBM Plex Mono) — 식별자·코드 조각 라벨용 */
+  mono?: boolean
+}
+
+/** 사각형(모서리 둥긂) — text는 중앙 라벨, textSize 기본 16 */
+export interface RectShape extends ShapeBase, TextStyle {
   kind: 'rect'
   x: number
   y: number
   w: number
   h: number
   text?: string
+  textSize?: number
 }
 
-/** 타원 — bbox(x, y, w, h) 기준. text는 중앙 라벨 */
-export interface EllipseShape extends ShapeBase {
+/** 타원 — bbox(x, y, w, h) 기준. text는 중앙 라벨, textSize 기본 16 */
+export interface EllipseShape extends ShapeBase, TextStyle {
   kind: 'ellipse'
   x: number
   y: number
   w: number
   h: number
   text?: string
+  textSize?: number
 }
 
 /** 선 / 화살표(끝점 화살촉) */
@@ -61,7 +74,7 @@ export interface LineShape extends ShapeBase {
 }
 
 /** 텍스트 — (x, y)는 첫 줄 베이스라인 좌측 기준 */
-export interface TextShape extends ShapeBase {
+export interface TextShape extends ShapeBase, TextStyle {
   kind: 'text'
   x: number
   y: number

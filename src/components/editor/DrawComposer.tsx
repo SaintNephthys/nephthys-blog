@@ -7,7 +7,7 @@ import {
   type PointerEvent as ReactPointerEvent,
 } from 'react'
 import { createPortal } from 'react-dom'
-import { ROLES, roleDef, type RoleKey } from '../../lib/draw/palette'
+import { DRAW_FONT_MONO, ROLES, roleDef, type RoleKey } from '../../lib/draw/palette'
 import { findBindTarget, reflowBindings } from '../../lib/draw/bind'
 import {
   addShape,
@@ -25,7 +25,13 @@ import {
   type AlignMode,
 } from '../../lib/draw/ops'
 import { docToSvg, svgToDoc } from '../../lib/draw/svg'
-import { emptyDoc, type DrawDoc, type LineShape, type Shape } from '../../lib/draw/types'
+import {
+  emptyDoc,
+  type DrawDoc,
+  type LineShape,
+  type Shape,
+  type TextStyle,
+} from '../../lib/draw/types'
 
 /**
  * '도형' 버튼으로 열리는 SVG 이미지 작성 모달 — excalidraw식 클릭-드래그 캔버스.
@@ -132,6 +138,11 @@ function DrawComposer({ api, initialFile, onClose }: DrawComposerProps) {
   const [role, setRole] = useState<RoleKey>('alert')
   const [strokeWidth, setStrokeWidth] = useState(2)
   const [dashed, setDashed] = useState(false)
+  // 텍스트 스타일 기본값 — 선택이 있으면 해당 도형에 적용, 없으면 새 도형에 적용
+  const [textBold, setTextBold] = useState(false)
+  const [textItalic, setTextItalic] = useState(false)
+  const [textMono, setTextMono] = useState(false)
+  const [textSize, setTextSize] = useState(16)
   const [selectedIds, setSelectedIds] = useState<ReadonlySet<string>>(new Set())
   const [editing, setEditing] = useState<{ id: string; value: string } | null>(null)
   const [fileName, setFileName] = useState(draft?.fileName ?? 'drawing')
@@ -149,6 +160,10 @@ function DrawComposer({ api, initialFile, onClose }: DrawComposerProps) {
   // pointer capture가 이후 mouse 이벤트(dblclick)를 svg 루트로 재타게팅하므로
   // 캡처 전인 pointerdown 시점의 히트 도형을 기억해 둔다
   const lastHitRef = useRef<string | null>(null)
+  // 텍스트 도구로 만든 도형 — 편집 시작은 pointerup으로 미룬다. pointerdown에서
+  // 바로 열면 오버레이가 포인터 아래에 마운트된 뒤 이어지는 mousedown(svg 대상)이
+  // 포커스를 빼앗아 blur → 빈 텍스트 커밋 → 도형 제거로 이어진다
+  const pendingEditRef = useRef<Shape | null>(null)
   const apiRef = useRef(api)
   useEffect(() => {
     apiRef.current = api
@@ -358,6 +373,13 @@ function DrawComposer({ api, initialFile, onClose }: DrawComposerProps) {
 
     const pt = { x: snapTo(raw.x, !e.altKey), y: snapTo(raw.y, !e.altKey) }
 
+    // 현재 텍스트 스타일 기본값 — true인 것만 저장(JSON 간결성)
+    const styleFields = {
+      ...(textBold ? { bold: true } : {}),
+      ...(textItalic ? { italic: true } : {}),
+      ...(textMono ? { mono: true } : {}),
+    }
+
     if (tool === 'text') {
       const id = newShapeId(before)
       const shape: Shape = {
@@ -369,11 +391,12 @@ function DrawComposer({ api, initialFile, onClose }: DrawComposerProps) {
         x: pt.x,
         y: pt.y,
         text: '',
-        size: 16,
+        size: textSize,
+        ...styleFields,
       }
       commit(addShape(before, shape))
       setTool('select')
-      startEditing(shape)
+      pendingEditRef.current = shape
       return
     }
 
@@ -382,7 +405,16 @@ function DrawComposer({ api, initialFile, onClose }: DrawComposerProps) {
     const base = { id, role, strokeWidth, dashed }
     const shape: Shape =
       tool === 'rect' || tool === 'ellipse'
-        ? { ...base, kind: tool, x: pt.x, y: pt.y, w: 0, h: 0 }
+        ? {
+            ...base,
+            kind: tool,
+            x: pt.x,
+            y: pt.y,
+            w: 0,
+            h: 0,
+            ...styleFields,
+            ...(textSize !== 16 ? { textSize } : {}),
+          }
         : { ...base, kind: 'line', x1: pt.x, y1: pt.y, x2: pt.x, y2: pt.y, arrow: tool === 'arrow' }
     gestureRef.current = { type: 'draw', id, startX: pt.x, startY: pt.y, before }
     applyDoc(addShape(before, shape))
@@ -486,6 +518,13 @@ function DrawComposer({ api, initialFile, onClose }: DrawComposerProps) {
   }
 
   const onPointerUp = () => {
+    // 텍스트 도구 생성 도형 — mousedown이 지나간 뒤에 편집을 열어야 포커스가 유지된다
+    if (pendingEditRef.current) {
+      const shape = pendingEditRef.current
+      pendingEditRef.current = null
+      startEditing(shape)
+      return
+    }
     const g = gestureRef.current
     gestureRef.current = null
     setBindHint(null)
@@ -586,6 +625,57 @@ function DrawComposer({ api, initialFile, onClose }: DrawComposerProps) {
     const next = single ? !single.dashed : !dashed
     setDashed(next)
     if (selectedIds.size > 0) patchSelection({ dashed: next })
+  }
+
+  /** 텍스트 스타일 토글·크기 — 선택된 텍스트 보유 도형(선 제외)에 적용, 없으면 기본값만 변경 */
+  const applyTextStyle = (patch: {
+    bold?: boolean
+    italic?: boolean
+    mono?: boolean
+    size?: number
+  }) => {
+    const textTargets = selection.filter((s) => s.kind !== 'line')
+    if (textTargets.length === 0) return
+    let next = docRef.current
+    for (const s of textTargets) {
+      const p: Partial<TextStyle> & { size?: number; textSize?: number } = {}
+      if (patch.bold !== undefined) p.bold = patch.bold || undefined
+      if (patch.italic !== undefined) p.italic = patch.italic || undefined
+      if (patch.mono !== undefined) p.mono = patch.mono || undefined
+      if (patch.size !== undefined) {
+        if (s.kind === 'text') p.size = patch.size
+        else p.textSize = patch.size
+      }
+      next = updateShape(next, s.id, p as Partial<Shape>)
+    }
+    commit(next)
+  }
+
+  const textTarget = single && single.kind !== 'line' ? single : undefined
+  const activeBold = textTarget ? !!textTarget.bold : textBold
+  const activeItalic = textTarget ? !!textTarget.italic : textItalic
+  const activeMono = textTarget ? !!textTarget.mono : textMono
+  const activeTextSize = textTarget
+    ? textTarget.kind === 'text'
+      ? textTarget.size
+      : (textTarget.textSize ?? 16)
+    : textSize
+
+  const toggleBold = () => {
+    setTextBold(!activeBold)
+    applyTextStyle({ bold: !activeBold })
+  }
+  const toggleItalic = () => {
+    setTextItalic(!activeItalic)
+    applyTextStyle({ italic: !activeItalic })
+  }
+  const toggleMono = () => {
+    setTextMono(!activeMono)
+    applyTextStyle({ mono: !activeMono })
+  }
+  const changeTextSize = (size: number) => {
+    setTextSize(size)
+    applyTextStyle({ size })
   }
 
   const align = (mode: AlignMode) => commit(alignShapes(docRef.current, selectedIds, mode))
@@ -820,6 +910,31 @@ function DrawComposer({ api, initialFile, onClose }: DrawComposerProps) {
           <button type="button" title="점선" className={activeDashed ? 'active' : ''} onClick={toggleDashed}>
             ┄
           </button>
+          <span className="drawdlg__sep" />
+          <button type="button" title="라벨 굵게" className={activeBold ? 'active' : ''} onClick={toggleBold}>
+            B
+          </button>
+          <button type="button" title="라벨 기울임" className={activeItalic ? 'active' : ''} onClick={toggleItalic}>
+            <em>I</em>
+          </button>
+          <button type="button" title="라벨 코드체" className={activeMono ? 'active' : ''} onClick={toggleMono}>
+            {'<>'}
+          </button>
+          {[
+            { size: 13, label: 'S' },
+            { size: 16, label: 'M' },
+            { size: 20, label: 'L' },
+          ].map((s) => (
+            <button
+              key={s.size}
+              type="button"
+              title={`라벨 크기 ${s.size}px`}
+              className={activeTextSize === s.size ? 'active' : ''}
+              onClick={() => changeTextSize(s.size)}
+            >
+              {s.label}
+            </button>
+          ))}
           <span className="drawdlg__sep" />
           {aligns.map((a) => (
             <button
@@ -1091,7 +1206,14 @@ function ShapeView({ shape }: { shape: Shape }) {
     }
     case 'text':
       return (
-        <text data-id={shape.id} x={shape.x} y={shape.y} fontSize={shape.size} fill={role.stroke}>
+        <text
+          data-id={shape.id}
+          x={shape.x}
+          y={shape.y}
+          fontSize={shape.size}
+          fill={role.stroke}
+          {...styleAttrs(shape)}
+        >
           {shape.text.split('\n').map((line, i) => (
             <tspan key={i} x={shape.x} y={shape.y + i * shape.size * 1.4}>
               {line}
@@ -1102,20 +1224,31 @@ function ShapeView({ shape }: { shape: Shape }) {
   }
 }
 
+/** 텍스트 스타일 → React SVG props (내보내기 svg.ts의 textAttrs와 시각 동일) */
+function styleAttrs(shape: { bold?: boolean; italic?: boolean; mono?: boolean }) {
+  return {
+    fontWeight: shape.bold ? 700 : undefined,
+    fontStyle: shape.italic ? ('italic' as const) : undefined,
+    fontFamily: shape.mono ? DRAW_FONT_MONO : undefined,
+  }
+}
+
 function CenterLabel({ shape, color }: { shape: Shape & { kind: 'rect' | 'ellipse' }; color: string }) {
   const cx = shape.x + shape.w / 2
   const cy = shape.y + shape.h / 2
+  const size = shape.textSize ?? 16
   const lines = (shape.text ?? '').split('\n')
   return (
     <text
       data-id={shape.id}
-      fontSize={16}
+      fontSize={size}
       fill={color}
       textAnchor="middle"
       dominantBaseline="middle"
+      {...styleAttrs(shape)}
     >
       {lines.map((line, i) => (
-        <tspan key={i} x={cx} y={cy + (i - (lines.length - 1) / 2) * 16 * 1.4}>
+        <tspan key={i} x={cx} y={cy + (i - (lines.length - 1) / 2) * size * 1.4}>
           {line}
         </tspan>
       ))}

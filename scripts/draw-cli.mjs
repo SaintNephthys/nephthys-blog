@@ -78,14 +78,20 @@ switch (command) {
   - 에디터는 24px 격자에 스냅하므로 좌표·크기를 24의 배수로 두면 손편집과 어울린다.
 
 도형 공통 필드: id(문서 내 유일), role(아래 팔레트), strokeWidth(1|2|3), dashed(boolean)
-  rect    { kind, x, y, w, h, text? }            모서리 둥근 사각형, text는 중앙 라벨(\\n 다중 줄)
-  ellipse { kind, x, y, w, h, text? }            bbox 기준 타원
+  rect    { kind, x, y, w, h, text?, textSize? } 모서리 둥근 사각형, text는 중앙 라벨(\\n 다중 줄, 크기 기본 16)
+  ellipse { kind, x, y, w, h, text?, textSize? } bbox 기준 타원
   line    { kind, x1, y1, x2, y2, arrow, boundStart?, boundEnd? }
                                                  arrow=true면 끝점 화살촉.
                                                  boundStart/boundEnd에 rect·ellipse id를 주면
                                                  끝점이 그 도형 경계(+4px)에 자동 정착·추적된다
                                                  — 바인딩 시 좌표는 대략값(0)이어도 됨.
   text    { kind, x, y, text, size }             (x,y)=첫 줄 베이스라인 좌측, size 기본 16
+
+텍스트 스타일(rect·ellipse 라벨과 text 도형의 선택 필드, 생략 = 기본):
+  bold: true    굵게 (제목·강조 라벨)
+  italic: true  기울임
+  mono: true    코드체(IBM Plex Mono) — dynamic_cast<Dog*> 같은 식별자·코드 조각에 사용
+  권장 크기: 13(보조 캡션·화살표 라벨) · 16(기본) · 20(제목)
 
 팔레트 role (색은 직접 지정하지 않는다 — NieR 테마 일관성):
 ${roles}

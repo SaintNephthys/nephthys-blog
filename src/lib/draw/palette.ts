@@ -54,3 +54,6 @@ export function isRoleKey(value: unknown): value is RoleKey {
 
 /** 내보내기 SVG의 글꼴 — 게시물 본문과 동일 계열 */
 export const DRAW_FONT = "'Noto Sans KR', 'Apple SD Gothic Neo', sans-serif"
+
+/** 코드체 라벨용 글꼴 — 테마 --font-mono와 동일 계열 */
+export const DRAW_FONT_MONO = "'IBM Plex Mono', 'Menlo', monospace"

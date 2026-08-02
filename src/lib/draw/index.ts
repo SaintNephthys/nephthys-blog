@@ -4,8 +4,16 @@
  */
 
 export { DRAW_DOC_VERSION, emptyDoc } from './types'
-export type { DrawDoc, Shape, RectShape, EllipseShape, LineShape, TextShape } from './types'
-export { ROLES, roleDef, isRoleKey, DRAW_FONT } from './palette'
+export type {
+  DrawDoc,
+  Shape,
+  RectShape,
+  EllipseShape,
+  LineShape,
+  TextShape,
+  TextStyle,
+} from './types'
+export { ROLES, roleDef, isRoleKey, DRAW_FONT, DRAW_FONT_MONO } from './palette'
 export type { RoleKey, RoleDef } from './palette'
 export {
   addShape,

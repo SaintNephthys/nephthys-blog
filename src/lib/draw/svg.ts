@@ -6,9 +6,9 @@
  * 로드되므로 CSS 변수를 쓸 수 없다 — 색은 팔레트 hex로 고정된다.
  */
 
-import { DRAW_FONT, roleDef, isRoleKey, type RoleKey } from './palette'
+import { DRAW_FONT, DRAW_FONT_MONO, roleDef, isRoleKey, type RoleKey } from './palette'
 import { docBBox } from './ops'
-import { DRAW_DOC_VERSION, type DrawDoc, type Shape } from './types'
+import { DRAW_DOC_VERSION, type DrawDoc, type Shape, type TextStyle } from './types'
 
 const METADATA_ID = 'nephthys-draw'
 const RECT_RADIUS = 6
@@ -38,8 +38,25 @@ function dashAttr(shape: Shape): string {
   return ` stroke-dasharray="${fmt(sw * 3)},${fmt(sw * 2)}"`
 }
 
+/** 텍스트 스타일 → SVG 속성 문자열 (글꼴 포함 — 기본은 본문 글꼴) */
+function textAttrs(style: TextStyle): string {
+  const font = style.mono ? DRAW_FONT_MONO : DRAW_FONT
+  return (
+    `font-family="${font}"` +
+    (style.bold ? ' font-weight="700"' : '') +
+    (style.italic ? ' font-style="italic"' : '')
+  )
+}
+
 /** 중앙 정렬 라벨(사각형·타원 내부) — 다중 줄은 tspan으로 세로 중앙 배치 */
-function centeredLabel(cx: number, cy: number, text: string, size: number, color: string): string {
+function centeredLabel(
+  cx: number,
+  cy: number,
+  text: string,
+  size: number,
+  color: string,
+  style: TextStyle,
+): string {
   const lines = text.split('\n')
   const spans = lines
     .map((line, i) => {
@@ -47,7 +64,7 @@ function centeredLabel(cx: number, cy: number, text: string, size: number, color
       return `<tspan x="${fmt(cx)}" y="${fmt(cy + dy)}">${escapeXml(line)}</tspan>`
     })
     .join('')
-  return `<text font-family="${DRAW_FONT}" font-size="${fmt(size)}" fill="${color}" text-anchor="middle" dominant-baseline="middle">${spans}</text>`
+  return `<text ${textAttrs(style)} font-size="${fmt(size)}" fill="${color}" text-anchor="middle" dominant-baseline="middle">${spans}</text>`
 }
 
 function renderShape(shape: Shape): string {
@@ -57,14 +74,24 @@ function renderShape(shape: Shape): string {
     case 'rect': {
       const body = `<rect x="${fmt(shape.x)}" y="${fmt(shape.y)}" width="${fmt(shape.w)}" height="${fmt(shape.h)}" rx="${RECT_RADIUS}" fill="${role.fill}" ${strokeAttrs}/>`
       return shape.text
-        ? body + centeredLabel(shape.x + shape.w / 2, shape.y + shape.h / 2, shape.text, 16, role.label)
+        ? body +
+            centeredLabel(
+              shape.x + shape.w / 2,
+              shape.y + shape.h / 2,
+              shape.text,
+              shape.textSize ?? 16,
+              role.label,
+              shape,
+            )
         : body
     }
     case 'ellipse': {
       const cx = shape.x + shape.w / 2
       const cy = shape.y + shape.h / 2
       const body = `<ellipse cx="${fmt(cx)}" cy="${fmt(cy)}" rx="${fmt(shape.w / 2)}" ry="${fmt(shape.h / 2)}" fill="${role.fill}" ${strokeAttrs}/>`
-      return shape.text ? body + centeredLabel(cx, cy, shape.text, 16, role.label) : body
+      return shape.text
+        ? body + centeredLabel(cx, cy, shape.text, shape.textSize ?? 16, role.label, shape)
+        : body
     }
     case 'line': {
       const marker = shape.arrow ? ` marker-end="url(#arw-${shape.role})"` : ''
@@ -78,7 +105,7 @@ function renderShape(shape: Shape): string {
             `<tspan x="${fmt(shape.x)}" y="${fmt(shape.y + i * shape.size * LINE_HEIGHT)}">${escapeXml(line)}</tspan>`,
         )
         .join('')
-      return `<text font-family="${DRAW_FONT}" font-size="${fmt(shape.size)}" fill="${role.stroke}">${spans}</text>`
+      return `<text ${textAttrs(shape)} font-size="${fmt(shape.size)}" fill="${role.stroke}">${spans}</text>`
     }
   }
 }
@@ -140,12 +167,19 @@ function shapeErrors(s: unknown, i: number): string[] {
   const num = (key: string) => {
     if (!isFiniteNum(o[key])) errors.push(`${at}.${key}: 유한 숫자 필요`)
   }
+  // 텍스트 스타일(선택) — bold/italic/mono boolean
+  for (const k of ['bold', 'italic', 'mono']) {
+    if (o[k] !== undefined && typeof o[k] !== 'boolean')
+      errors.push(`${at}.${k}: boolean 또는 생략`)
+  }
   switch (o.kind) {
     case 'rect':
     case 'ellipse':
       for (const k of ['x', 'y', 'w', 'h']) num(k)
       if (o.text !== undefined && typeof o.text !== 'string')
         errors.push(`${at}.text: 문자열 또는 생략`)
+      if (o.textSize !== undefined && !isFiniteNum(o.textSize))
+        errors.push(`${at}.textSize: 유한 숫자 또는 생략`)
       break
     case 'line':
       for (const k of ['x1', 'y1', 'x2', 'y2']) num(k)
