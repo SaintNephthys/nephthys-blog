@@ -1416,9 +1416,10 @@ a {
   flex: 1;
 }
 
-.editor__form input[type='text'],
-.editor__form input[type='date'],
-.editor__form select,
+/* 폼 자체 컨트롤(.field 안)만 — 본문 위젯(그래프 param 입력 등)에 새지 않도록 스코프 유지 */
+.editor__form .field input[type='text'],
+.editor__form .field input[type='date'],
+.editor__form .field select,
 .category-manager__add input {
   width: 100%;
   font-family: var(--font-sans);
@@ -1430,8 +1431,8 @@ a {
   border-radius: 0;
 }
 
-.editor__form input:focus,
-.editor__form select:focus,
+.editor__form .field input:focus,
+.editor__form .field select:focus,
 .editor__textarea:focus,
 .category-manager__add input:focus {
   outline: 2px solid var(--nier-dark);
