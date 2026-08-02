@@ -12,6 +12,9 @@ export type {
   LineShape,
   TextShape,
   TextStyle,
+  TextAlign,
+  TextVAlign,
+  LabelAlign,
 } from './types'
 export { ROLES, roleDef, isRoleKey, DRAW_FONT, DRAW_FONT_MONO } from './palette'
 export type { RoleKey, RoleDef } from './palette'
@@ -22,13 +25,17 @@ export {
   distributeShapes,
   docBBox,
   duplicateShapes,
+  labelLayout,
   newShapeId,
   normalizeBox,
   removeShape,
   sendToBack,
   shapeBBox,
+  textBaselineY,
   translateShape,
   updateShape,
+  LABEL_PAD,
+  TEXT_LINE_HEIGHT,
 } from './ops'
 export type { AlignMode } from './ops'
 export { containsPoint, findBindTarget, reflowBindings } from './bind'

@@ -75,17 +75,28 @@ switch (command) {
 
 문서: { "version": 1, "width": 960, "height": 540, "shapes": [...] }
   - 캔버스는 편집 좌표계일 뿐, 내보내기는 내용 bbox로 fit된다(pad 16).
-  - 에디터는 24px 격자에 스냅하므로 좌표·크기를 24의 배수로 두면 손편집과 어울린다.
+  - 에디터는 6px 단위로 스냅한다(격자 주선 24px + 6px 보조선). 좌표·크기를 6의 배수로,
+    큰 골격은 24의 배수로 두면 손편집과 어울린다.
 
 도형 공통 필드: id(문서 내 유일), role(아래 팔레트), strokeWidth(1|2|3), dashed(boolean)
-  rect    { kind, x, y, w, h, text?, textSize? } 모서리 둥근 사각형, text는 중앙 라벨(\\n 다중 줄, 크기 기본 16)
-  ellipse { kind, x, y, w, h, text?, textSize? } bbox 기준 타원
+  rect    { kind, x, y, w, h, text?, textSize?, textAlign?, textValign? }
+                                                 모서리 둥근 사각형, text는 라벨(\\n 다중 줄, 크기 기본 16).
+                                                 textAlign: left|center(기본)|right,
+                                                 textValign: top|middle(기본)|bottom — 상자 안쪽 8px 여백 기준 배치
+  ellipse { kind, x, y, w, h, text?, textSize?, textAlign?, textValign? }
+                                                 bbox 기준 타원, 라벨 배치는 rect와 동일
   line    { kind, x1, y1, x2, y2, arrow, boundStart?, boundEnd? }
                                                  arrow=true면 끝점 화살촉.
                                                  boundStart/boundEnd에 rect·ellipse id를 주면
                                                  끝점이 그 도형 경계(+4px)에 자동 정착·추적된다
                                                  — 바인딩 시 좌표는 대략값(0)이어도 됨.
-  text    { kind, x, y, text, size }             (x,y)=첫 줄 베이스라인 좌측, size 기본 16
+  text    { kind, x, y, text, size, align?, valign? }
+                                                 (x,y)=정렬 앵커, size 기본 16.
+                                                 align: left(기본)|center|right — x가 좌측·중앙·우측 기준.
+                                                 valign: top|middle|bottom — y가 블록 상단·중앙·하단 기준
+                                                 (생략 = 첫 줄 베이스라인, 구 문서 호환).
+                                                 신규 작성은 align: center + valign: middle 권장 —
+                                                 (x,y)가 텍스트 블록의 정중앙이 되어 배치 계산이 쉽다
 
 텍스트 스타일(rect·ellipse 라벨과 text 도형의 선택 필드, 생략 = 기본):
   bold: true    굵게 (제목·강조 라벨)

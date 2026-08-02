@@ -33,8 +33,16 @@ export interface TextStyle {
   mono?: boolean
 }
 
-/** 사각형(모서리 둥긂) — text는 중앙 라벨, textSize 기본 16 */
-export interface RectShape extends ShapeBase, TextStyle {
+/** 라벨 정렬(v1 widening) — 도형(rect·ellipse) 라벨의 상자 내 배치. 생략 = center/middle */
+export interface LabelAlign {
+  /** 가로 — 생략 = center. left/right는 상자 안쪽 8px 여백 기준 */
+  textAlign?: TextAlign
+  /** 세로 — 생략 = middle. top/bottom은 상자 안쪽 8px 여백 기준 */
+  textValign?: TextVAlign
+}
+
+/** 사각형(모서리 둥긂) — text는 라벨(기본 중앙), textSize 기본 16 */
+export interface RectShape extends ShapeBase, TextStyle, LabelAlign {
   kind: 'rect'
   x: number
   y: number
@@ -44,8 +52,8 @@ export interface RectShape extends ShapeBase, TextStyle {
   textSize?: number
 }
 
-/** 타원 — bbox(x, y, w, h) 기준. text는 중앙 라벨, textSize 기본 16 */
-export interface EllipseShape extends ShapeBase, TextStyle {
+/** 타원 — bbox(x, y, w, h) 기준. text는 라벨(기본 중앙), textSize 기본 16 */
+export interface EllipseShape extends ShapeBase, TextStyle, LabelAlign {
   kind: 'ellipse'
   x: number
   y: number
@@ -73,7 +81,17 @@ export interface LineShape extends ShapeBase {
   boundEnd?: string
 }
 
-/** 텍스트 — (x, y)는 첫 줄 베이스라인 좌측 기준 */
+/** 텍스트 가로 정렬(v1 widening) — 생략 = left (구 문서 호환) */
+export type TextAlign = 'left' | 'center' | 'right'
+
+/** 텍스트 세로 정렬(v1 widening) — 텍스트 도형에서 생략 = 첫 줄 베이스라인(구 문서 호환) */
+export type TextVAlign = 'top' | 'middle' | 'bottom'
+
+/**
+ * 텍스트 — (x, y)는 정렬 앵커. x는 align 기준(left=좌측·center=중앙·right=우측),
+ * y는 valign 기준(top=블록 상단·middle=블록 중앙·bottom=블록 하단.
+ * 생략 = 첫 줄 베이스라인 — 구 문서 호환).
+ */
 export interface TextShape extends ShapeBase, TextStyle {
   kind: 'text'
   x: number
@@ -81,6 +99,8 @@ export interface TextShape extends ShapeBase, TextStyle {
   text: string
   /** 논리 px — 내보내기에도 그대로 쓴다 */
   size: number
+  align?: TextAlign
+  valign?: TextVAlign
 }
 
 export type Shape = RectShape | EllipseShape | LineShape | TextShape

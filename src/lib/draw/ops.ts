@@ -3,7 +3,58 @@
  * 모든 함수는 입력을 변경하지 않고 새 값을 반환한다(undo 스택·React 상태 호환).
  */
 
-import type { DrawDoc, Shape } from './types'
+import type { DrawDoc, EllipseShape, RectShape, Shape, TextShape } from './types'
+
+/** 텍스트 줄 간격 배수 — 렌더·bbox·라벨 배치의 단일 원천 */
+export const TEXT_LINE_HEIGHT = 1.4
+/** 도형 라벨의 상자 안쪽 여백(논리 px) — left/right/top/bottom 정렬 기준 */
+export const LABEL_PAD = 8
+
+/**
+ * 텍스트 도형의 첫 줄 베이스라인 y — valign 앵커 해석.
+ * 생략 = y가 곧 첫 줄 베이스라인(구 문서 호환), top/middle/bottom = y가 블록 상단/중앙/하단.
+ */
+export function textBaselineY(shape: TextShape): number {
+  const blockH = shape.text.split('\n').length * shape.size * TEXT_LINE_HEIGHT
+  switch (shape.valign) {
+    case 'top':
+      return shape.y + shape.size
+    case 'middle':
+      return shape.y + shape.size - blockH / 2
+    case 'bottom':
+      return shape.y + shape.size - blockH
+    default:
+      return shape.y
+  }
+}
+
+/**
+ * 도형(rect·ellipse) 라벨의 배치 계산 — svg 내보내기와 에디터 렌더가 공유.
+ * 각 줄은 dominant-baseline: middle 기준의 세로 중심 y를 갖는다.
+ */
+export function labelLayout(
+  shape: RectShape | EllipseShape,
+  lines: readonly string[],
+): { anchor: 'start' | 'middle' | 'end'; x: number; lineYs: number[] } {
+  const size = shape.textSize ?? 16
+  const lh = size * TEXT_LINE_HEIGHT
+  const align = shape.textAlign ?? 'center'
+  const valign = shape.textValign ?? 'middle'
+  const anchor = align === 'left' ? 'start' : align === 'right' ? 'end' : 'middle'
+  const x =
+    align === 'left'
+      ? shape.x + LABEL_PAD
+      : align === 'right'
+        ? shape.x + shape.w - LABEL_PAD
+        : shape.x + shape.w / 2
+  const first =
+    valign === 'top'
+      ? shape.y + LABEL_PAD + lh / 2
+      : valign === 'bottom'
+        ? shape.y + shape.h - LABEL_PAD - lh / 2 - (lines.length - 1) * lh
+        : shape.y + shape.h / 2 - ((lines.length - 1) / 2) * lh
+  return { anchor, x, lineYs: lines.map((_, i) => first + i * lh) }
+}
 
 let seq = 0
 
@@ -69,11 +120,15 @@ export function shapeBBox(shape: Shape): { x: number; y: number; w: number; h: n
           [...line].reduce((acc, ch) => acc + (ch.charCodeAt(0) > 0x2000 ? 1 : 0.6), 0),
         ),
       )
+      const w = width * shape.size
+      // x는 정렬 앵커 — left: 좌측, center: 중앙, right: 우측
+      const x =
+        shape.align === 'center' ? shape.x - w / 2 : shape.align === 'right' ? shape.x - w : shape.x
       return {
-        x: shape.x,
-        y: shape.y - shape.size,
-        w: width * shape.size,
-        h: lines.length * shape.size * 1.4,
+        x,
+        y: textBaselineY(shape) - shape.size,
+        w,
+        h: lines.length * shape.size * TEXT_LINE_HEIGHT,
       }
     }
   }

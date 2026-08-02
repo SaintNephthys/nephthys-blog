@@ -2573,13 +2573,39 @@ a {
   padding: 0 2px;
 }
 
+/* 도구바 — 라벨 붙은 그룹 2행: 1행 그리기 도구·스타일, 2행 선택 대상 조작 */
 .drawdlg__tools {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  padding: 7px 10px;
+  border-bottom: 1px solid var(--nier-line-soft);
+}
+
+.drawdlg__toolrow {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
+  gap: 4px 14px;
+}
+
+.drawdlg__group {
+  display: flex;
+  align-items: center;
   gap: 4px;
-  padding: 8px 10px;
-  border-bottom: 1px solid var(--nier-line-soft);
+}
+
+/* 문서 전역 그룹(undo·비우기)은 우측 끝으로 밀어 파괴적 버튼을 격리 */
+.drawdlg__group--end {
+  margin-left: auto;
+}
+
+.drawdlg__grouplabel {
+  font-size: 0.625rem;
+  letter-spacing: 0.08em;
+  color: var(--nier-text-dim);
+  margin-right: 2px;
+  user-select: none;
 }
 
 .drawdlg__tools button {
@@ -2643,6 +2669,9 @@ a {
   display: block;
   width: 100%;
   touch-action: none;
+  /* 드래그 중 브라우저 네이티브 텍스트 선택(라벨·텍스트 도형이 파랗게 잡히는 현상) 방지 */
+  user-select: none;
+  -webkit-user-select: none;
 }
 
 .drawdlg__canvas svg[data-tool='select'] {

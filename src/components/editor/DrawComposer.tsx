@@ -15,13 +15,16 @@ import {
   bringToFront,
   distributeShapes,
   duplicateShapes,
+  labelLayout,
   newShapeId,
   normalizeBox,
   removeShape,
   sendToBack,
   shapeBBox,
+  textBaselineY,
   translateShape,
   updateShape,
+  TEXT_LINE_HEIGHT,
   type AlignMode,
 } from '../../lib/draw/ops'
 import { docToSvg, svgToDoc } from '../../lib/draw/svg'
@@ -30,7 +33,9 @@ import {
   type DrawDoc,
   type LineShape,
   type Shape,
+  type TextAlign,
   type TextStyle,
+  type TextVAlign,
 } from '../../lib/draw/types'
 
 /**
@@ -42,7 +47,8 @@ import {
  * lib/draw의 순수 계층에 있다 — 차후 MCP/Agent가 같은 DrawDoc JSON을 생성·수정해
  * 동일한 docToSvg 경로로 저장하는 것을 전제한 분리다.
  *
- * 편의 기능: 격자 스냅(Alt 해제)·Shift 제약(정사각/정원·45° 선)·다중 선택
+ * 편의 기능: 격자 스냅(Alt 해제)·스마트 가이드(이동 중 주변 도형 가장자리·중앙에
+ * 근접 시 격자보다 우선해 붙이고 안내선 표시)·Shift 제약(정사각/정원·45° 선)·다중 선택
  * (Shift+클릭, 러버밴드)·정렬/분배·z순서·복제(Ctrl+D, Alt+드래그)·방향키 이동·
  * 다중 줄 라벨·기존 SVG 불러오기(메타데이터 왕복)·화살표-도형 바인딩.
  */
@@ -52,7 +58,9 @@ type Tool = 'select' | 'rect' | 'ellipse' | 'line' | 'arrow' | 'text'
 const DRAFT_KEY = 'nephthys-draw-doc'
 const MIN_DRAW = 6 // 이보다 작은 드래그는 실수로 보고 버린다 (논리 px)
 const HANDLE = 7
-const GRID = 24
+const GRID = 24 // 격자 주선 간격(표시)
+const SNAP = 6 // 스냅 간격 — 주선의 1/4, 보조선으로 표시 (도형 중심 정렬 등 세밀 배치용)
+const GUIDE_THRESH = 5 // 이 거리(논리 px) 안이면 다른 도형의 가장자리·중앙에 정확히 붙인다
 
 /** 저장·불러오기 위임 — EditorPage가 slug 맥락을 알고 구현한다 */
 export interface DrawingApi {
@@ -93,7 +101,81 @@ function loadDraft(): DraftPayload | null {
   }
 }
 
-const snapTo = (v: number, enabled: boolean) => (enabled ? Math.round(v / GRID) * GRID : v)
+const snapTo = (v: number, enabled: boolean) => (enabled ? Math.round(v / SNAP) * SNAP : v)
+
+/** 격자 보조선(스냅 간격) 경로 — 24px 타일 안의 6·12·18 지점 */
+const GRID_MINOR_PATH = Array.from({ length: GRID / SNAP - 1 }, (_, i) => (i + 1) * SNAP)
+  .map((v) => `M ${v} 0 V ${GRID} M 0 ${v} H ${GRID}`)
+  .join(' ')
+
+type BBox = { x: number; y: number; w: number; h: number }
+
+/** 스마트 가이드 안내선 — v(세로선)는 pos=x·start/end=y 구간, h(가로선)는 반대 */
+interface GuideLine {
+  axis: 'v' | 'h'
+  pos: number
+  start: number
+  end: number
+}
+
+function unionBBox(boxes: BBox[]): BBox {
+  const x = Math.min(...boxes.map((b) => b.x))
+  const y = Math.min(...boxes.map((b) => b.y))
+  const r = Math.max(...boxes.map((b) => b.x + b.w))
+  const btm = Math.max(...boxes.map((b) => b.y + b.h))
+  return { x, y, w: r - x, h: btm - y }
+}
+
+/** bbox의 스냅 후보 지점 — 시작·중앙·끝 */
+const bboxStops = (b: BBox, axis: 'x' | 'y') =>
+  axis === 'x' ? [b.x, b.x + b.w / 2, b.x + b.w] : [b.y, b.y + b.h / 2, b.y + b.h]
+
+/**
+ * 이동 중 bbox를 주변 도형의 가장자리·중앙에 붙이는 보정 계산.
+ * 축별로 가장 가까운 일치(<= GUIDE_THRESH)를 찾아 보정량(delta)과 안내선을 돌려준다.
+ */
+function findGuideSnap(
+  moving: BBox,
+  statics: BBox[],
+): { dx: number | null; dy: number | null; guides: GuideLine[] } {
+  let bestX: { d: number; pos: number; other: BBox } | null = null
+  let bestY: { d: number; pos: number; other: BBox } | null = null
+  for (const other of statics) {
+    for (const mv of bboxStops(moving, 'x'))
+      for (const sv of bboxStops(other, 'x')) {
+        const d = sv - mv
+        if (Math.abs(d) <= GUIDE_THRESH && (!bestX || Math.abs(d) < Math.abs(bestX.d)))
+          bestX = { d, pos: sv, other }
+      }
+    for (const mv of bboxStops(moving, 'y'))
+      for (const sv of bboxStops(other, 'y')) {
+        const d = sv - mv
+        if (Math.abs(d) <= GUIDE_THRESH && (!bestY || Math.abs(d) < Math.abs(bestY.d)))
+          bestY = { d, pos: sv, other }
+      }
+  }
+  const guides: GuideLine[] = []
+  const snapped: BBox = {
+    ...moving,
+    x: moving.x + (bestX?.d ?? 0),
+    y: moving.y + (bestY?.d ?? 0),
+  }
+  if (bestX)
+    guides.push({
+      axis: 'v',
+      pos: bestX.pos,
+      start: Math.min(snapped.y, bestX.other.y) - 8,
+      end: Math.max(snapped.y + snapped.h, bestX.other.y + bestX.other.h) + 8,
+    })
+  if (bestY)
+    guides.push({
+      axis: 'h',
+      pos: bestY.pos,
+      start: Math.min(snapped.x, bestY.other.x) - 8,
+      end: Math.max(snapped.x + snapped.w, bestY.other.x + bestY.other.w) + 8,
+    })
+  return { dx: bestX ? bestX.d : null, dy: bestY ? bestY.d : null, guides }
+}
 
 /** 45° 배수로 각도 고정한 끝점 */
 function constrainAngle(x1: number, y1: number, x2: number, y2: number) {
@@ -143,6 +225,10 @@ function DrawComposer({ api, initialFile, onClose }: DrawComposerProps) {
   const [textItalic, setTextItalic] = useState(false)
   const [textMono, setTextMono] = useState(false)
   const [textSize, setTextSize] = useState(16)
+  // 새 텍스트 기본 중앙/중앙 정렬 — 편집 오버레이(중앙 배치 박스)와 커밋 결과가 일치(WYSIWYG)
+  const [textAlign, setTextAlign] = useState<TextAlign>('center')
+  const [textValign, setTextValign] = useState<TextVAlign>('middle')
+  const [guides, setGuides] = useState<GuideLine[]>([])
   const [selectedIds, setSelectedIds] = useState<ReadonlySet<string>>(new Set())
   const [editing, setEditing] = useState<{ id: string; value: string } | null>(null)
   const [fileName, setFileName] = useState(draft?.fileName ?? 'drawing')
@@ -393,6 +479,9 @@ function DrawComposer({ api, initialFile, onClose }: DrawComposerProps) {
         text: '',
         size: textSize,
         ...styleFields,
+        ...(textAlign !== 'left' ? { align: textAlign } : {}),
+        // valign은 생략 = 구식 베이스라인 앵커이므로 새 텍스트는 항상 명시 저장
+        valign: textValign,
       }
       commit(addShape(before, shape))
       setTool('select')
@@ -452,8 +541,24 @@ function DrawComposer({ api, initialFile, onClose }: DrawComposerProps) {
 
     if (g.type === 'move') {
       const pb = shapeBBox(g.primary)
-      const dx = snapTo(pb.x + (raw.x - g.startX), snapOn) - pb.x
-      const dy = snapTo(pb.y + (raw.y - g.startY), snapOn) - pb.y
+      const rdx = raw.x - g.startX
+      const rdy = raw.y - g.startY
+      // 스마트 가이드 — 이동 묶음 bbox가 주변 도형의 가장자리·중앙에 가까우면
+      // 격자보다 우선해 정확히 붙이고 안내선을 띄운다 (Alt = 격자와 함께 해제)
+      let dx = snapTo(pb.x + rdx, snapOn) - pb.x
+      let dy = snapTo(pb.y + rdy, snapOn) - pb.y
+      let nextGuides: GuideLine[] = []
+      if (snapOn) {
+        const ub = unionBBox([...g.origins.values()].map(shapeBBox))
+        const statics = current.shapes.filter((s) => !g.origins.has(s.id)).map(shapeBBox)
+        if (statics.length > 0) {
+          const snap = findGuideSnap({ ...ub, x: ub.x + rdx, y: ub.y + rdy }, statics)
+          if (snap.dx !== null) dx = rdx + snap.dx
+          if (snap.dy !== null) dy = rdy + snap.dy
+          nextGuides = snap.guides
+        }
+      }
+      setGuides(nextGuides)
       if (!g.moved && dx === 0 && dy === 0) return
       g.moved = true
       applyDoc({
@@ -528,6 +633,7 @@ function DrawComposer({ api, initialFile, onClose }: DrawComposerProps) {
     const g = gestureRef.current
     gestureRef.current = null
     setBindHint(null)
+    setGuides([])
     if (!g) return
     const current = docRef.current
 
@@ -678,6 +784,69 @@ function DrawComposer({ api, initialFile, onClose }: DrawComposerProps) {
     applyTextStyle({ size })
   }
 
+  /**
+   * 텍스트 가로 정렬 — 텍스트 도형은 앵커 x를 함께 옮겨 화면 위치를 유지한 채 기준만
+   * 바꾸고, 사각형·타원은 라벨의 상자 내 배치(textAlign)를 바꾼다.
+   */
+  const changeTextAlign = (align: TextAlign) => {
+    setTextAlign(align)
+    let next = docRef.current
+    let changed = false
+    for (const s of selection) {
+      if (s.kind === 'text') {
+        const b = shapeBBox(s)
+        const nx = align === 'center' ? b.x + b.w / 2 : align === 'right' ? b.x + b.w : b.x
+        next = updateShape(next, s.id, {
+          x: nx,
+          align: align === 'left' ? undefined : align,
+        } as Partial<Shape>)
+        changed = true
+      } else if (s.kind === 'rect' || s.kind === 'ellipse') {
+        next = updateShape(next, s.id, {
+          textAlign: align === 'center' ? undefined : align,
+        } as Partial<Shape>)
+        changed = true
+      }
+    }
+    if (changed) commit(next)
+  }
+
+  /** 텍스트 세로 정렬 — 텍스트 도형은 앵커 y를 함께 옮겨 화면 위치 유지, 도형은 textValign */
+  const changeTextValign = (valign: TextVAlign) => {
+    setTextValign(valign)
+    let next = docRef.current
+    let changed = false
+    for (const s of selection) {
+      if (s.kind === 'text') {
+        const b = shapeBBox(s)
+        const ny = valign === 'top' ? b.y : valign === 'bottom' ? b.y + b.h : b.y + b.h / 2
+        next = updateShape(next, s.id, { y: ny, valign } as Partial<Shape>)
+        changed = true
+      } else if (s.kind === 'rect' || s.kind === 'ellipse') {
+        next = updateShape(next, s.id, {
+          textValign: valign === 'middle' ? undefined : valign,
+        } as Partial<Shape>)
+        changed = true
+      }
+    }
+    if (changed) commit(next)
+  }
+
+  const alignTextTarget = single && single.kind === 'text' ? single : undefined
+  const alignBoxTarget =
+    single && (single.kind === 'rect' || single.kind === 'ellipse') ? single : undefined
+  const activeTextAlign: TextAlign = alignTextTarget
+    ? (alignTextTarget.align ?? 'left')
+    : alignBoxTarget
+      ? (alignBoxTarget.textAlign ?? 'center')
+      : textAlign
+  // 구 문서의 텍스트(valign 생략 = 베이스라인 앵커)는 어느 버튼도 켜지 않는다
+  const activeTextValign: TextVAlign | null = alignTextTarget
+    ? (alignTextTarget.valign ?? null)
+    : alignBoxTarget
+      ? (alignBoxTarget.textValign ?? 'middle')
+      : textValign
+
   const align = (mode: AlignMode) => commit(alignShapes(docRef.current, selectedIds, mode))
   const distribute = (axis: 'x' | 'y') => commit(distributeShapes(docRef.current, selectedIds, axis))
 
@@ -814,14 +983,27 @@ function DrawComposer({ api, initialFile, onClose }: DrawComposerProps) {
     return () => window.removeEventListener('keydown', onKey)
   })
 
-  // 라벨 편집 입력의 오버레이 위치 (% — 캔버스 크기 변화에 무관)
+  // 라벨 편집 입력의 오버레이 위치 (% — 캔버스 크기 변화에 무관).
+  // 텍스트 도형은 정렬 앵커에 맞춰 박스 기준점·글자 정렬을 일치시킨다(WYSIWYG)
   const editingShape = editing ? doc.shapes.find((s) => s.id === editing.id) : undefined
   const editingPos = editingShape
     ? (() => {
         const b = shapeBBox(editingShape)
-        const cx = editingShape.kind === 'text' ? b.x : b.x + b.w / 2
+        const isText = editingShape.kind === 'text'
+        const align: TextAlign = isText ? (editingShape.align ?? 'left') : 'center'
+        const cx = isText ? editingShape.x : b.x + b.w / 2
         const cy = b.y + b.h / 2
-        return { left: `${(cx / doc.width) * 100}%`, top: `${(cy / doc.height) * 100}%` }
+        return {
+          left: `${(cx / doc.width) * 100}%`,
+          top: `${(cy / doc.height) * 100}%`,
+          transform:
+            align === 'left'
+              ? 'translate(0, -50%)'
+              : align === 'right'
+                ? 'translate(-100%, -50%)'
+                : undefined,
+          textAlign: align,
+        } as const
       })()
     : null
 
@@ -866,136 +1048,199 @@ function DrawComposer({ api, initialFile, onClose }: DrawComposerProps) {
         </div>
 
         <div className="drawdlg__tools" role="toolbar" aria-label="그리기 도구">
-          {tools.map((t) => (
-            <button
-              key={t.key}
-              type="button"
-              title={t.title}
-              className={tool === t.key ? 'active' : ''}
-              onClick={() => setTool(t.key)}
-            >
-              {t.label}
-            </button>
-          ))}
-          <span className="drawdlg__sep" />
-          {ROLES.map((r) => (
-            <button
-              key={r.key}
-              type="button"
-              title={r.name}
-              aria-label={`팔레트 ${r.name}`}
-              className={`drawdlg__chip${activeRole === r.key ? ' active' : ''}`}
-              onClick={() => changeRole(r.key)}
-            >
-              <span
-                style={{
-                  background: r.fill === 'none' ? 'transparent' : r.fill,
-                  borderColor: r.stroke,
-                }}
-              />
-            </button>
-          ))}
-          <span className="drawdlg__sep" />
-          {[1, 2, 3].map((w) => (
-            <button
-              key={w}
-              type="button"
-              title={`선 굵기 ${w}`}
-              className={activeWidth === w ? 'active' : ''}
-              onClick={() => changeWidth(w)}
-            >
-              {w}px
-            </button>
-          ))}
-          <button type="button" title="점선" className={activeDashed ? 'active' : ''} onClick={toggleDashed}>
-            ┄
-          </button>
-          <span className="drawdlg__sep" />
-          <button type="button" title="라벨 굵게" className={activeBold ? 'active' : ''} onClick={toggleBold}>
-            B
-          </button>
-          <button type="button" title="라벨 기울임" className={activeItalic ? 'active' : ''} onClick={toggleItalic}>
-            <em>I</em>
-          </button>
-          <button type="button" title="라벨 코드체" className={activeMono ? 'active' : ''} onClick={toggleMono}>
-            {'<>'}
-          </button>
-          {[
-            { size: 13, label: 'S' },
-            { size: 16, label: 'M' },
-            { size: 20, label: 'L' },
-          ].map((s) => (
-            <button
-              key={s.size}
-              type="button"
-              title={`라벨 크기 ${s.size}px`}
-              className={activeTextSize === s.size ? 'active' : ''}
-              onClick={() => changeTextSize(s.size)}
-            >
-              {s.label}
-            </button>
-          ))}
-          <span className="drawdlg__sep" />
-          {aligns.map((a) => (
-            <button
-              key={a.mode}
-              type="button"
-              title={`${a.title} (2개 이상 선택)`}
-              disabled={!canAlign}
-              onClick={() => align(a.mode)}
-            >
-              {a.label}
-            </button>
-          ))}
-          <button
-            type="button"
-            title="가로 등간격 분배 (3개 이상 선택)"
-            disabled={!canDistribute}
-            onClick={() => distribute('x')}
-          >
-            ↔
-          </button>
-          <button
-            type="button"
-            title="세로 등간격 분배 (3개 이상 선택)"
-            disabled={!canDistribute}
-            onClick={() => distribute('y')}
-          >
-            ↕
-          </button>
-          <span className="drawdlg__sep" />
-          <button
-            type="button"
-            title="맨 앞으로 (Ctrl+])"
-            disabled={!hasSelection}
-            onClick={() => commit(bringToFront(docRef.current, selectedIds))}
-          >
-            앞
-          </button>
-          <button
-            type="button"
-            title="맨 뒤로 (Ctrl+[)"
-            disabled={!hasSelection}
-            onClick={() => commit(sendToBack(docRef.current, selectedIds))}
-          >
-            뒤
-          </button>
-          <button type="button" title="복제 (Ctrl+D, Alt+드래그)" disabled={!hasSelection} onClick={duplicateSelected}>
-            복제
-          </button>
-          <button type="button" title="선택 도형 삭제 (Delete)" disabled={!hasSelection} onClick={removeSelected}>
-            삭제
-          </button>
-          <span className="drawdlg__sep" />
-          <button type="button" title="실행 취소 (Ctrl+Z)" onClick={undo}>
-            ↶
-          </button>
-          <button type="button" title="다시 실행 (Ctrl+Shift+Z)" onClick={redo}>
-            ↷
-          </button>
-          <button type="button" title="전체 비우기" onClick={clearAll}>
-            비우기
-          </button>
+          {/* 1행: 무엇을 어떻게 그릴지 — 도구·색·선·텍스트 스타일 */}
+          <div className="drawdlg__toolrow">
+            <span className="drawdlg__group" aria-label="도구">
+              <span className="drawdlg__grouplabel">도구</span>
+              {tools.map((t) => (
+                <button
+                  key={t.key}
+                  type="button"
+                  title={t.title}
+                  className={tool === t.key ? 'active' : ''}
+                  onClick={() => setTool(t.key)}
+                >
+                  {t.label}
+                </button>
+              ))}
+            </span>
+            <span className="drawdlg__group" aria-label="팔레트">
+              <span className="drawdlg__grouplabel">색</span>
+              {ROLES.map((r) => (
+                <button
+                  key={r.key}
+                  type="button"
+                  title={r.name}
+                  aria-label={`팔레트 ${r.name}`}
+                  className={`drawdlg__chip${activeRole === r.key ? ' active' : ''}`}
+                  onClick={() => changeRole(r.key)}
+                >
+                  <span
+                    style={{
+                      background: r.fill === 'none' ? 'transparent' : r.fill,
+                      borderColor: r.stroke,
+                    }}
+                  />
+                </button>
+              ))}
+            </span>
+            <span className="drawdlg__group" aria-label="선 굵기·점선">
+              <span className="drawdlg__grouplabel">선</span>
+              {[1, 2, 3].map((w) => (
+                <button
+                  key={w}
+                  type="button"
+                  title={`선 굵기 ${w}`}
+                  className={activeWidth === w ? 'active' : ''}
+                  onClick={() => changeWidth(w)}
+                >
+                  {w}px
+                </button>
+              ))}
+              <button type="button" title="점선" className={activeDashed ? 'active' : ''} onClick={toggleDashed}>
+                ┄
+              </button>
+            </span>
+            <span className="drawdlg__group" aria-label="텍스트 스타일">
+              <span className="drawdlg__grouplabel">텍스트</span>
+              <button type="button" title="라벨 굵게" className={activeBold ? 'active' : ''} onClick={toggleBold}>
+                B
+              </button>
+              <button type="button" title="라벨 기울임" className={activeItalic ? 'active' : ''} onClick={toggleItalic}>
+                <em>I</em>
+              </button>
+              <button type="button" title="라벨 코드체" className={activeMono ? 'active' : ''} onClick={toggleMono}>
+                {'<>'}
+              </button>
+              <span className="drawdlg__sep" />
+              {[
+                { size: 13, label: 'S' },
+                { size: 16, label: 'M' },
+                { size: 20, label: 'L' },
+              ].map((s) => (
+                <button
+                  key={s.size}
+                  type="button"
+                  title={`라벨 크기 ${s.size}px`}
+                  className={activeTextSize === s.size ? 'active' : ''}
+                  onClick={() => changeTextSize(s.size)}
+                >
+                  {s.label}
+                </button>
+              ))}
+              <span className="drawdlg__sep" />
+              {(
+                [
+                  { key: 'left', label: '좌', title: '텍스트 좌정렬 (도형은 라벨 배치)' },
+                  { key: 'center', label: '중', title: '텍스트 가로 중앙 정렬 (도형은 라벨 배치)' },
+                  { key: 'right', label: '우', title: '텍스트 우정렬 (도형은 라벨 배치)' },
+                ] as const
+              ).map((a) => (
+                <button
+                  key={a.key}
+                  type="button"
+                  title={a.title}
+                  className={activeTextAlign === a.key ? 'active' : ''}
+                  onClick={() => changeTextAlign(a.key)}
+                >
+                  {a.label}
+                </button>
+              ))}
+              <span className="drawdlg__sep" />
+              {(
+                [
+                  { key: 'top', label: '상', title: '텍스트 상단 정렬 (도형은 라벨 배치)' },
+                  { key: 'middle', label: '중', title: '텍스트 세로 중앙 정렬 (도형은 라벨 배치)' },
+                  { key: 'bottom', label: '하', title: '텍스트 하단 정렬 (도형은 라벨 배치)' },
+                ] as const
+              ).map((a) => (
+                <button
+                  key={a.key}
+                  type="button"
+                  title={a.title}
+                  className={activeTextValign === a.key ? 'active' : ''}
+                  onClick={() => changeTextValign(a.key)}
+                >
+                  {a.label}
+                </button>
+              ))}
+            </span>
+          </div>
+
+          {/* 2행: 선택 도형에 하는 일 — 정렬·순서·편집 + 문서 전체(우측 끝) */}
+          <div className="drawdlg__toolrow">
+            <span className="drawdlg__group" aria-label="맞춤·분배">
+              <span className="drawdlg__grouplabel">정렬</span>
+              {aligns.map((a) => (
+                <button
+                  key={a.mode}
+                  type="button"
+                  title={`${a.title} (2개 이상 선택)`}
+                  disabled={!canAlign}
+                  onClick={() => align(a.mode)}
+                >
+                  {a.label}
+                </button>
+              ))}
+              <span className="drawdlg__sep" />
+              <button
+                type="button"
+                title="가로 등간격 분배 (3개 이상 선택)"
+                disabled={!canDistribute}
+                onClick={() => distribute('x')}
+              >
+                ↔
+              </button>
+              <button
+                type="button"
+                title="세로 등간격 분배 (3개 이상 선택)"
+                disabled={!canDistribute}
+                onClick={() => distribute('y')}
+              >
+                ↕
+              </button>
+            </span>
+            <span className="drawdlg__group" aria-label="쌓임 순서">
+              <span className="drawdlg__grouplabel">순서</span>
+              <button
+                type="button"
+                title="맨 앞으로 (Ctrl+])"
+                disabled={!hasSelection}
+                onClick={() => commit(bringToFront(docRef.current, selectedIds))}
+              >
+                앞
+              </button>
+              <button
+                type="button"
+                title="맨 뒤로 (Ctrl+[)"
+                disabled={!hasSelection}
+                onClick={() => commit(sendToBack(docRef.current, selectedIds))}
+              >
+                뒤
+              </button>
+            </span>
+            <span className="drawdlg__group" aria-label="선택 편집">
+              <span className="drawdlg__grouplabel">선택</span>
+              <button type="button" title="복제 (Ctrl+D, Alt+드래그)" disabled={!hasSelection} onClick={duplicateSelected}>
+                복제
+              </button>
+              <button type="button" title="선택 도형 삭제 (Delete)" disabled={!hasSelection} onClick={removeSelected}>
+                삭제
+              </button>
+            </span>
+            <span className="drawdlg__group drawdlg__group--end" aria-label="문서">
+              <span className="drawdlg__grouplabel">문서</span>
+              <button type="button" title="실행 취소 (Ctrl+Z)" onClick={undo}>
+                ↶
+              </button>
+              <button type="button" title="다시 실행 (Ctrl+Shift+Z)" onClick={redo}>
+                ↷
+              </button>
+              <button type="button" title="전체 비우기" onClick={clearAll}>
+                비우기
+              </button>
+            </span>
+          </div>
         </div>
 
         <div className="drawdlg__canvas">
@@ -1010,6 +1255,14 @@ function DrawComposer({ api, initialFile, onClose }: DrawComposerProps) {
           >
             <defs>
               <pattern id="drawgrid" width={GRID} height={GRID} patternUnits="userSpaceOnUse">
+                {/* 스냅 간격 보조선 — 주선보다 옅게 */}
+                <path
+                  d={GRID_MINOR_PATH}
+                  fill="none"
+                  stroke="var(--nier-bg-dim)"
+                  strokeWidth="0.5"
+                  strokeOpacity="0.45"
+                />
                 <path
                   d={`M ${GRID} 0 L 0 0 0 ${GRID}`}
                   fill="none"
@@ -1041,6 +1294,34 @@ function DrawComposer({ api, initialFile, onClose }: DrawComposerProps) {
                   />
                 )
               })()}
+            {/* 스마트 가이드 안내선 — 이동 중 가장자리·중앙 일치 표시 */}
+            {guides.map((gl, i) =>
+              gl.axis === 'v' ? (
+                <line
+                  key={i}
+                  x1={gl.pos}
+                  y1={gl.start}
+                  x2={gl.pos}
+                  y2={gl.end}
+                  stroke="#b05a4a"
+                  strokeWidth={1}
+                  strokeDasharray="4,3"
+                  pointerEvents="none"
+                />
+              ) : (
+                <line
+                  key={i}
+                  x1={gl.start}
+                  y1={gl.pos}
+                  x2={gl.end}
+                  y2={gl.pos}
+                  stroke="#b05a4a"
+                  strokeWidth={1}
+                  strokeDasharray="4,3"
+                  pointerEvents="none"
+                />
+              ),
+            )}
             {!editing &&
               selection.map((s) => (
                 <SelectionOverlay key={s.id} shape={s} withHandles={selection.length === 1} />
@@ -1204,23 +1485,33 @@ function ShapeView({ shape }: { shape: Shape }) {
         </g>
       )
     }
-    case 'text':
+    case 'text': {
+      // 글리프 사이·줄 사이 빈틈을 클릭해도 잡히도록 bbox 근사 투명 히트 영역
+      const b = shapeBBox(shape)
+      const baseline = textBaselineY(shape)
       return (
-        <text
-          data-id={shape.id}
-          x={shape.x}
-          y={shape.y}
-          fontSize={shape.size}
-          fill={role.stroke}
-          {...styleAttrs(shape)}
-        >
-          {shape.text.split('\n').map((line, i) => (
-            <tspan key={i} x={shape.x} y={shape.y + i * shape.size * 1.4}>
-              {line}
-            </tspan>
-          ))}
-        </text>
+        <g>
+          <text
+            data-id={shape.id}
+            x={shape.x}
+            y={baseline}
+            fontSize={shape.size}
+            fill={role.stroke}
+            textAnchor={
+              shape.align === 'center' ? 'middle' : shape.align === 'right' ? 'end' : undefined
+            }
+            {...styleAttrs(shape)}
+          >
+            {shape.text.split('\n').map((line, i) => (
+              <tspan key={i} x={shape.x} y={baseline + i * shape.size * TEXT_LINE_HEIGHT}>
+                {line}
+              </tspan>
+            ))}
+          </text>
+          <rect data-id={shape.id} x={b.x} y={b.y} width={b.w} height={b.h} fill="transparent" />
+        </g>
       )
+    }
   }
 }
 
@@ -1233,22 +1524,21 @@ function styleAttrs(shape: { bold?: boolean; italic?: boolean; mono?: boolean })
   }
 }
 
+/** 도형 라벨 — 배치는 labelLayout(내보내기 svg.ts와 공유)이 단일 원천 */
 function CenterLabel({ shape, color }: { shape: Shape & { kind: 'rect' | 'ellipse' }; color: string }) {
-  const cx = shape.x + shape.w / 2
-  const cy = shape.y + shape.h / 2
-  const size = shape.textSize ?? 16
   const lines = (shape.text ?? '').split('\n')
+  const { anchor, x, lineYs } = labelLayout(shape, lines)
   return (
     <text
       data-id={shape.id}
-      fontSize={size}
+      fontSize={shape.textSize ?? 16}
       fill={color}
-      textAnchor="middle"
+      textAnchor={anchor}
       dominantBaseline="middle"
       {...styleAttrs(shape)}
     >
       {lines.map((line, i) => (
-        <tspan key={i} x={cx} y={cy + (i - (lines.length - 1) / 2) * size * 1.4}>
+        <tspan key={i} x={x} y={lineYs[i]}>
           {line}
         </tspan>
       ))}

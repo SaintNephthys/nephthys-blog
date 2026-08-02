@@ -7,12 +7,19 @@
  */
 
 import { DRAW_FONT, DRAW_FONT_MONO, roleDef, isRoleKey, type RoleKey } from './palette'
-import { docBBox } from './ops'
-import { DRAW_DOC_VERSION, type DrawDoc, type Shape, type TextStyle } from './types'
+import { docBBox, labelLayout, textBaselineY, TEXT_LINE_HEIGHT } from './ops'
+import {
+  DRAW_DOC_VERSION,
+  type DrawDoc,
+  type EllipseShape,
+  type RectShape,
+  type Shape,
+  type TextStyle,
+} from './types'
 
 const METADATA_ID = 'nephthys-draw'
 const RECT_RADIUS = 6
-const LINE_HEIGHT = 1.4
+const LINE_HEIGHT = TEXT_LINE_HEIGHT
 
 function escapeXml(text: string): string {
   return text
@@ -48,23 +55,14 @@ function textAttrs(style: TextStyle): string {
   )
 }
 
-/** 중앙 정렬 라벨(사각형·타원 내부) — 다중 줄은 tspan으로 세로 중앙 배치 */
-function centeredLabel(
-  cx: number,
-  cy: number,
-  text: string,
-  size: number,
-  color: string,
-  style: TextStyle,
-): string {
-  const lines = text.split('\n')
+/** 도형 라벨(사각형·타원 내부) — textAlign/textValign 반영, 배치는 labelLayout이 단일 원천 */
+function boxLabel(shape: RectShape | EllipseShape, color: string): string {
+  const lines = (shape.text ?? '').split('\n')
+  const { anchor, x, lineYs } = labelLayout(shape, lines)
   const spans = lines
-    .map((line, i) => {
-      const dy = (i - (lines.length - 1) / 2) * size * LINE_HEIGHT
-      return `<tspan x="${fmt(cx)}" y="${fmt(cy + dy)}">${escapeXml(line)}</tspan>`
-    })
+    .map((line, i) => `<tspan x="${fmt(x)}" y="${fmt(lineYs[i])}">${escapeXml(line)}</tspan>`)
     .join('')
-  return `<text ${textAttrs(style)} font-size="${fmt(size)}" fill="${color}" text-anchor="middle" dominant-baseline="middle">${spans}</text>`
+  return `<text ${textAttrs(shape)} font-size="${fmt(shape.textSize ?? 16)}" fill="${color}" text-anchor="${anchor}" dominant-baseline="middle">${spans}</text>`
 }
 
 function renderShape(shape: Shape): string {
@@ -73,39 +71,34 @@ function renderShape(shape: Shape): string {
   switch (shape.kind) {
     case 'rect': {
       const body = `<rect x="${fmt(shape.x)}" y="${fmt(shape.y)}" width="${fmt(shape.w)}" height="${fmt(shape.h)}" rx="${RECT_RADIUS}" fill="${role.fill}" ${strokeAttrs}/>`
-      return shape.text
-        ? body +
-            centeredLabel(
-              shape.x + shape.w / 2,
-              shape.y + shape.h / 2,
-              shape.text,
-              shape.textSize ?? 16,
-              role.label,
-              shape,
-            )
-        : body
+      return shape.text ? body + boxLabel(shape, role.label) : body
     }
     case 'ellipse': {
       const cx = shape.x + shape.w / 2
       const cy = shape.y + shape.h / 2
       const body = `<ellipse cx="${fmt(cx)}" cy="${fmt(cy)}" rx="${fmt(shape.w / 2)}" ry="${fmt(shape.h / 2)}" fill="${role.fill}" ${strokeAttrs}/>`
-      return shape.text
-        ? body + centeredLabel(cx, cy, shape.text, shape.textSize ?? 16, role.label, shape)
-        : body
+      return shape.text ? body + boxLabel(shape, role.label) : body
     }
     case 'line': {
       const marker = shape.arrow ? ` marker-end="url(#arw-${shape.role})"` : ''
       return `<line x1="${fmt(shape.x1)}" y1="${fmt(shape.y1)}" x2="${fmt(shape.x2)}" y2="${fmt(shape.y2)}" ${strokeAttrs} fill="none"${marker}/>`
     }
     case 'text': {
+      const baseline = textBaselineY(shape)
       const spans = shape.text
         .split('\n')
         .map(
           (line, i) =>
-            `<tspan x="${fmt(shape.x)}" y="${fmt(shape.y + i * shape.size * LINE_HEIGHT)}">${escapeXml(line)}</tspan>`,
+            `<tspan x="${fmt(shape.x)}" y="${fmt(baseline + i * shape.size * LINE_HEIGHT)}">${escapeXml(line)}</tspan>`,
         )
         .join('')
-      return `<text ${textAttrs(shape)} font-size="${fmt(shape.size)}" fill="${role.stroke}">${spans}</text>`
+      const anchor =
+        shape.align === 'center'
+          ? ' text-anchor="middle"'
+          : shape.align === 'right'
+            ? ' text-anchor="end"'
+            : ''
+      return `<text ${textAttrs(shape)} font-size="${fmt(shape.size)}" fill="${role.stroke}"${anchor}>${spans}</text>`
     }
   }
 }
@@ -172,6 +165,8 @@ function shapeErrors(s: unknown, i: number): string[] {
     if (o[k] !== undefined && typeof o[k] !== 'boolean')
       errors.push(`${at}.${k}: boolean 또는 생략`)
   }
+  const alignOk = (v: unknown) => v === undefined || v === 'left' || v === 'center' || v === 'right'
+  const valignOk = (v: unknown) => v === undefined || v === 'top' || v === 'middle' || v === 'bottom'
   switch (o.kind) {
     case 'rect':
     case 'ellipse':
@@ -180,6 +175,8 @@ function shapeErrors(s: unknown, i: number): string[] {
         errors.push(`${at}.text: 문자열 또는 생략`)
       if (o.textSize !== undefined && !isFiniteNum(o.textSize))
         errors.push(`${at}.textSize: 유한 숫자 또는 생략`)
+      if (!alignOk(o.textAlign)) errors.push(`${at}.textAlign: left|center|right 또는 생략`)
+      if (!valignOk(o.textValign)) errors.push(`${at}.textValign: top|middle|bottom 또는 생략`)
       break
     case 'line':
       for (const k of ['x1', 'y1', 'x2', 'y2']) num(k)
@@ -192,6 +189,8 @@ function shapeErrors(s: unknown, i: number): string[] {
     case 'text':
       for (const k of ['x', 'y', 'size']) num(k)
       if (typeof o.text !== 'string') errors.push(`${at}.text: 문자열 필요`)
+      if (!alignOk(o.align)) errors.push(`${at}.align: left|center|right 또는 생략`)
+      if (!valignOk(o.valign)) errors.push(`${at}.valign: top|middle|bottom 또는 생략`)
       break
     default:
       errors.push(`${at}.kind: 알 수 없는 종류 '${String(o.kind)}' (rect|ellipse|line|text)`)
