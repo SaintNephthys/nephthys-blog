@@ -9,7 +9,7 @@ interface PostViewerProps {
 
 function PostViewer({ meta, content }: PostViewerProps) {
   return (
-    <article>
+    <article className="post-view">
       <header className="post-view__header">
         <h1 className="post-view__title">{meta.title}</h1>
         <div className="post-view__meta">

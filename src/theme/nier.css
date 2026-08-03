@@ -940,6 +940,13 @@ a {
   }
 }
 
+/* 배경 장식(격자·비네트)이 본문 글자와 겹쳐 읽기 불편 — 반투명 패널로 대비 확보 */
+.post-view {
+  background: rgba(242, 236, 218, 0.78); /* --nier-panel 반투명 */
+  padding: 28px 32px 36px;
+  box-shadow: 3px 3px 0 rgba(69, 65, 56, 0.15);
+}
+
 .post-view__header {
   border-bottom: 2px solid var(--nier-dark);
   margin-bottom: 24px;
@@ -1899,6 +1906,10 @@ a {
 
   .app-content {
     padding: 24px 16px 60px;
+  }
+
+  .post-view {
+    padding: 20px 16px 28px;
   }
 
   .editor {
