@@ -1,0 +1,762 @@
+/* ============================================================
+   TOKYOSKY theme — 푸른 하늘의 22세기 도쿄 (reference-files/newtheme.jpg)
+   ============================================================
+   nier.css의 --nier-* 변수를 시맨틱 슬롯으로 재사용해 색·폰트를 갈아끼우고,
+   형태 언어(곡률·부드러운 그림자·틴트 호버·글래스 표면)는 컴포넌트 단위로
+   오버라이드한다. 모든 규칙은 html[data-theme='tokyosky'] 스코프 안에만 존재 —
+   CITYRUIN(NieR)은 nier.css 기본값 그대로 남는다.
+
+   색 원칙 — 전체 컨셉은 '하늘색 느낌이 나는 흰색': 바탕·면은 흰색 기조에
+   하늘색 기운만 옅게 물들이고, 글자는 진한 잉크(--nier-dark는 잉크·보더 전용,
+   면 채움에 쓰지 않는다). 메뉴(사이드바)는 하늘 패밀리로 통일하고, 그 외
+   상호작용 요소가 같은 한색 계열의 파스텔 패밀리를 나눠 쓴다:
+   하늘(내비게이션·주요 버튼) · 민트(태그·복사) · 라벤더(카테고리 칩·에디터 탭·인용) ·
+   아이스 시안(일반 버튼 호버). 각 패밀리 fill 위 ink는 대비 6:1 이상.
+   ============================================================ */
+
+html[data-theme='tokyosky'] {
+  /* 팔레트 — '하늘색 느낌이 나는 흰색' 바탕 + 잉크 블루 텍스트 */
+  --nier-bg: #f4f9fd;
+  --nier-bg-dim: #e7f0f8;
+  --nier-panel: #ffffff;
+  --nier-panel-dim: #f5f9fd;
+  --nier-dark: #2e6396; /* 잉크·보더 전용 — 면 채움은 파스텔 토큰으로 */
+  --nier-dark-soft: #4a7fb0;
+  --nier-text: #22405c;
+  --nier-text-dim: #52708e;
+  --nier-text-inv: #f4faff;
+  --nier-line: #bfd7e9;
+  --nier-line-soft: #dfebf4;
+  --nier-accent: #4d9fd6;
+  --nier-alert: #d0493c; /* 朱 — 도쿄 버밀리언 */
+
+  /* 폰트 (전부 SIL OFL) — Outfit(라틴 기하학) + IBM Plex Sans KR/JP.
+     모노는 가독성이 좋은 IBM Plex Mono(숫자·코드) — UI 크롬(버튼·칩)은 아래에서
+     sans로 전환한다 */
+  --font-sans: 'Outfit', 'IBM Plex Sans KR', 'IBM Plex Sans JP', 'Apple SD Gothic Neo', sans-serif;
+  --font-mono: 'IBM Plex Mono', 'Menlo', monospace;
+
+  /* 형태 토큰 */
+  --tk-radius-s: 8px;
+  --tk-radius-m: 12px;
+  --tk-radius-l: 16px;
+  --tk-shadow-1: 0 1px 2px rgba(58, 104, 146, 0.07), 0 3px 12px rgba(58, 104, 146, 0.07);
+  --tk-shadow-2: 0 4px 14px rgba(58, 104, 146, 0.12), 0 12px 36px rgba(58, 104, 146, 0.09);
+
+  /* 파스텔 패밀리 — fill(흰색에 가까운 면)·line(보더)·ink(그 위 글자).
+     fill은 흰색 기조를 유지할 만큼만 물들인다 — 잉크는 그대로라 대비는 상승 */
+  --tk-sky-fill: #e4f1fb;
+  --tk-sky-soft: #f2f8fd;
+  --tk-sky-line: #b9d9f0;
+  --tk-sky-ink: #1f4a6e;
+  --tk-mint-fill: #e3f7f3;
+  --tk-mint-line: #b4e4da;
+  --tk-mint-ink: #145f54;
+  --tk-lav-fill: #eceefc;
+  --tk-lav-line: #ccd1f2;
+  --tk-lav-ink: #3a4494;
+  --tk-ice-fill: #e7f6fb;
+  --tk-ice-line: #b9e2ef;
+  --tk-ice-ink: #0f5e75;
+  --tk-primary-grad: linear-gradient(135deg, var(--tk-sky-fill), var(--tk-sky-soft));
+}
+
+/* UI 크롬(버튼·칩·토글·검색·메타 정보) — 모노 대신 가독성 좋은 sans + 절제된
+   자간. 숫자(날짜·게시물 수·글씨 크기 % 등)가 Outfit의 기하학 숫자로 또렷하게
+   읽힌다. 모노는 진짜 코드·수학 문맥(코드 블럭·거터·그래프 눈금)에만 남긴다 */
+html[data-theme='tokyosky'] .btn,
+html[data-theme='tokyosky'] .tag-chip,
+html[data-theme='tokyosky'] .theme-control button,
+html[data-theme='tokyosky'] .font-control button,
+html[data-theme='tokyosky'] .editor-tabs__tab,
+html[data-theme='tokyosky'] .side-bar__item .count,
+html[data-theme='tokyosky'] .side-bar__subitem .count,
+html[data-theme='tokyosky'] .top-bar__search input,
+html[data-theme='tokyosky'] .top-bar__search-drop input,
+html[data-theme='tokyosky'] .post-card__meta,
+html[data-theme='tokyosky'] .post-view__meta,
+html[data-theme='tokyosky'] .page-subtitle {
+  font-family: var(--font-sans);
+  letter-spacing: 0.06em;
+}
+
+/* 시스템 라벨(섹션 헤더·목차 제목·상태 문구) — 폰트만 sans로, 넓은 자간은 유지 */
+html[data-theme='tokyosky'] .side-bar__header,
+html[data-theme='tokyosky'] .side-bar__empty,
+html[data-theme='tokyosky'] .toc__title,
+html[data-theme='tokyosky'] .loading,
+html[data-theme='tokyosky'] .empty-note,
+html[data-theme='tokyosky'] .editor__group-title {
+  font-family: var(--font-sans);
+}
+
+html[data-theme='tokyosky'] ::selection {
+  background: #a8d8f5;
+  color: #16324a;
+}
+
+html[data-theme='tokyosky'] ::-webkit-scrollbar-track {
+  background: #eef5fb;
+}
+
+html[data-theme='tokyosky'] ::-webkit-scrollbar-thumb {
+  background: #bcd4e7;
+  border: 2px solid #eef5fb;
+  border-radius: 8px;
+}
+
+/* ============================================================
+   Background — 하늘빛 흰색 그라데이션 + 선화(헤일로 스파이어·스카이라인)
+   ============================================================ */
+
+html[data-theme='tokyosky'] .bg-layer {
+  background:
+    radial-gradient(ellipse 58% 40% at 50% -8%, rgba(255, 255, 255, 0.95), transparent 72%),
+    linear-gradient(180deg, #e2eff9 0%, #f2f8fd 40%, #fbfdff 70%, #ffffff 100%);
+}
+
+/* 도시 블럭 격자 — 넓고 희미하게, 지평선 쪽으로 갈수록 또렷해진다 */
+html[data-theme='tokyosky'] .bg-layer::before {
+  background-image:
+    linear-gradient(var(--nier-line) 1px, transparent 1px),
+    linear-gradient(90deg, var(--nier-line) 1px, transparent 1px);
+  background-size: 56px 56px;
+  opacity: 0.06;
+  -webkit-mask-image: linear-gradient(180deg, transparent 6%, rgba(0, 0, 0, 0.6) 55%, #000 100%);
+  mask-image: linear-gradient(180deg, transparent 6%, rgba(0, 0, 0, 0.6) 55%, #000 100%);
+}
+
+.bg-tokyo__skyline {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  width: 100%;
+  height: clamp(110px, 24vh, 260px);
+  color: #b0cfe7;
+  opacity: 0.4;
+}
+
+/* 헤일로 스파이어 — 뷰포트보다 넓게(200vw) 확대해 상단에 걸친다.
+   링 3개가 좌우로 화면을 벗어나며 잘리는 것이 의도된 연출 */
+.bg-tokyo__halo {
+  position: absolute;
+  top: 20vh;
+  left: 50%;
+  width: 200vw;
+  transform: translateX(-50%);
+  color: #b2d2ea;
+  opacity: 0.45;
+}
+
+/* ============================================================
+   Top bar — 백색 글래스
+   ============================================================ */
+
+html[data-theme='tokyosky'] .top-bar {
+  background: rgba(255, 255, 255, 0.8);
+  -webkit-backdrop-filter: blur(14px) saturate(1.4);
+  backdrop-filter: blur(14px) saturate(1.4);
+  color: var(--nier-text);
+  border-bottom: 1px solid rgba(46, 99, 150, 0.12);
+  box-shadow: 0 1px 12px rgba(58, 104, 146, 0.05);
+}
+
+html[data-theme='tokyosky'] .top-bar__logo {
+  letter-spacing: 0.28em;
+}
+
+/* 로고 마크 — 회전 사각형 → 스파이어 헤일로 링 */
+html[data-theme='tokyosky'] .top-bar__logo-mark {
+  border: 2px solid var(--nier-dark);
+  border-radius: 50%;
+  transform: none;
+}
+
+html[data-theme='tokyosky'] .top-bar__logo-mark::after {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--nier-accent);
+}
+
+html[data-theme='tokyosky'] .top-bar__menu,
+html[data-theme='tokyosky'] .top-bar__search-toggle {
+  border: 1px solid rgba(46, 99, 150, 0.3);
+  border-radius: var(--tk-radius-s);
+  color: var(--nier-dark);
+}
+
+html[data-theme='tokyosky'] .top-bar__search input,
+html[data-theme='tokyosky'] .top-bar__search-drop input {
+  background: rgba(46, 99, 150, 0.05);
+  border: 1px solid rgba(46, 99, 150, 0.2);
+  border-radius: 999px;
+  color: var(--nier-text);
+  transition: background 0.15s, border-color 0.15s, box-shadow 0.15s;
+}
+
+html[data-theme='tokyosky'] .top-bar__search input::placeholder,
+html[data-theme='tokyosky'] .top-bar__search-drop input::placeholder {
+  color: rgba(34, 64, 92, 0.45);
+}
+
+html[data-theme='tokyosky'] .top-bar__search input:focus,
+html[data-theme='tokyosky'] .top-bar__search-drop input:focus {
+  background: #ffffff;
+  color: var(--nier-text);
+  border-color: var(--nier-accent);
+  box-shadow: 0 0 0 3px rgba(77, 159, 214, 0.2);
+}
+
+html[data-theme='tokyosky'] .top-bar__search input:focus::placeholder,
+html[data-theme='tokyosky'] .top-bar__search-drop input:focus::placeholder {
+  color: rgba(34, 64, 92, 0.4);
+}
+
+html[data-theme='tokyosky'] .top-bar__search-drop {
+  background: rgba(255, 255, 255, 0.85);
+  -webkit-backdrop-filter: blur(14px);
+  backdrop-filter: blur(14px);
+  border-bottom: 1px solid rgba(46, 99, 150, 0.14);
+}
+
+/* ============================================================
+   Side bar — 백색 라운드 카드 + 파스텔 하늘 active
+   ============================================================ */
+
+html[data-theme='tokyosky'] .theme-control button,
+html[data-theme='tokyosky'] .font-control button {
+  background: rgba(255, 255, 255, 0.92);
+  border: 1px solid rgba(46, 99, 150, 0.24);
+  border-radius: var(--tk-radius-s);
+  box-shadow: var(--tk-shadow-1);
+}
+
+html[data-theme='tokyosky'] .theme-control button:hover,
+html[data-theme='tokyosky'] .font-control button:hover:not(:disabled) {
+  background: var(--tk-sky-soft);
+  color: var(--tk-sky-ink);
+  border-color: var(--tk-sky-line);
+}
+
+html[data-theme='tokyosky'] .theme-control button.active {
+  background: var(--tk-primary-grad);
+  border-color: var(--tk-sky-line);
+  color: var(--tk-sky-ink);
+  font-weight: 600;
+}
+
+html[data-theme='tokyosky'] .side-bar__item {
+  background: rgba(255, 255, 255, 0.92);
+  /* button 요소(CATEGORIES)의 UA 기본 테두리 제거 후 좌측 액센트 바만 남긴다 */
+  border: 0;
+  border-left: 4px solid var(--nier-accent);
+  border-radius: var(--tk-radius-s);
+  box-shadow: var(--tk-shadow-1);
+  transition: background 0.15s, color 0.15s, transform 0.15s, box-shadow 0.15s;
+}
+
+html[data-theme='tokyosky'] .side-bar__item::before {
+  border-radius: 50%;
+  transform: none;
+  background: var(--nier-accent);
+}
+
+html[data-theme='tokyosky'] .side-bar__item:hover {
+  background: var(--tk-sky-soft);
+  color: var(--tk-sky-ink);
+  transform: translateX(3px);
+}
+
+html[data-theme='tokyosky'] .side-bar__item:hover::before {
+  background: var(--tk-sky-ink);
+}
+
+html[data-theme='tokyosky'] .side-bar__item.active {
+  background: var(--tk-primary-grad);
+  border-left-color: var(--nier-accent);
+  color: var(--tk-sky-ink);
+  font-weight: 700;
+  box-shadow: inset 0 0 0 1px var(--tk-sky-line), var(--tk-shadow-1);
+  transform: none;
+}
+
+html[data-theme='tokyosky'] .side-bar__item.active::before {
+  background: var(--nier-dark);
+}
+
+/* 카테고리 펼침 목록 — 메뉴와 같은 하늘 패밀리로 통일 */
+html[data-theme='tokyosky'] .side-bar__subitem {
+  background: rgba(255, 255, 255, 0.6);
+  border-left: 3px solid var(--tk-sky-line);
+  border-radius: 6px;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+
+html[data-theme='tokyosky'] .side-bar__subitem:hover,
+html[data-theme='tokyosky'] .side-bar__subitem.active {
+  background: var(--tk-sky-fill);
+  color: var(--tk-sky-ink);
+  border-left-color: var(--nier-accent);
+}
+
+/* ============================================================
+   Panel / 공통 요소
+   ============================================================ */
+
+html[data-theme='tokyosky'] .panel {
+  border: 1px solid var(--nier-line-soft);
+  border-radius: var(--tk-radius-m);
+  overflow: hidden;
+  box-shadow: var(--tk-shadow-1);
+}
+
+html[data-theme='tokyosky'] .panel__title {
+  background: var(--tk-primary-grad);
+  color: var(--tk-sky-ink);
+  border-bottom: 1px solid var(--tk-sky-line);
+}
+
+html[data-theme='tokyosky'] .panel__title::before {
+  border-radius: 50%;
+  background: var(--nier-accent);
+}
+
+html[data-theme='tokyosky'] .btn {
+  background: rgba(255, 255, 255, 0.9);
+  border: 1px solid rgba(46, 99, 150, 0.26);
+  border-radius: 10px;
+  box-shadow: var(--tk-shadow-1);
+  transition: background 0.15s, color 0.15s, border-color 0.15s, transform 0.12s,
+    box-shadow 0.12s;
+}
+
+/* 일반 버튼 호버 — 아이스 시안 패밀리 */
+html[data-theme='tokyosky'] .btn:hover:not(:disabled) {
+  background: var(--tk-ice-fill);
+  color: var(--tk-ice-ink);
+  border-color: var(--tk-ice-line);
+  transform: translateY(-1px);
+  box-shadow: var(--tk-shadow-2);
+}
+
+html[data-theme='tokyosky'] .btn--primary {
+  background: var(--tk-primary-grad);
+  border-color: var(--tk-sky-line);
+  color: var(--tk-sky-ink);
+  font-weight: 600;
+}
+
+html[data-theme='tokyosky'] .btn--primary:hover:not(:disabled) {
+  background: var(--tk-sky-fill);
+  color: var(--tk-sky-ink);
+  border-color: var(--nier-accent);
+}
+
+html[data-theme='tokyosky'] .btn--danger {
+  border-color: rgba(208, 73, 60, 0.45);
+}
+
+html[data-theme='tokyosky'] .btn--danger:hover:not(:disabled) {
+  background: #fbe9e6;
+  border-color: var(--nier-alert);
+  color: #a83428;
+}
+
+/* 태그 칩 — 민트 패밀리 */
+html[data-theme='tokyosky'] .tag-chip {
+  background: rgba(255, 255, 255, 0.7);
+  border: 1px solid var(--tk-mint-line);
+  border-radius: 999px;
+  padding: 1px 10px;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+
+html[data-theme='tokyosky'] .tag-chip:hover {
+  background: var(--tk-mint-fill);
+  border-color: var(--tk-mint-ink);
+  color: var(--tk-mint-ink);
+}
+
+/* 카테고리 칩 — 라벤더 패밀리 */
+html[data-theme='tokyosky'] .tag-chip--category {
+  background: var(--tk-lav-fill);
+  border-color: var(--tk-lav-line);
+  color: var(--tk-lav-ink);
+}
+
+html[data-theme='tokyosky'] .tag-chip--category:hover {
+  background: #d8ddf8;
+  border-color: var(--tk-lav-ink);
+  color: var(--tk-lav-ink);
+}
+
+/* 에디터 탭 — 라벤더 패밀리 */
+html[data-theme='tokyosky'] .editor-tabs__tab {
+  background: rgba(255, 255, 255, 0.75);
+  border: 1px solid rgba(46, 99, 150, 0.22);
+  border-radius: 10px 10px 0 0;
+}
+
+html[data-theme='tokyosky'] .editor-tabs__tab:hover,
+html[data-theme='tokyosky'] .editor-tabs__tab.active {
+  background: var(--tk-lav-fill);
+  border-color: var(--tk-lav-line);
+  color: var(--tk-lav-ink);
+}
+
+/* ============================================================
+   Post list / card — 리프트 호버
+   ============================================================ */
+
+html[data-theme='tokyosky'] .post-card {
+  background: rgba(255, 255, 255, 0.94);
+  border: 1px solid rgba(46, 99, 150, 0.12);
+  border-left: 5px solid var(--nier-accent);
+  border-radius: var(--tk-radius-m);
+  box-shadow: var(--tk-shadow-1);
+  transition: background 0.15s, transform 0.15s, box-shadow 0.15s, border-color 0.15s;
+}
+
+html[data-theme='tokyosky'] .post-card:hover {
+  background: #ffffff;
+  border-color: var(--tk-sky-line);
+  transform: translateY(-2px);
+  box-shadow: var(--tk-shadow-2);
+}
+
+html[data-theme='tokyosky'] .post-card__title::before {
+  border-radius: 50%;
+  transform: none;
+  background: linear-gradient(135deg, #4d9fd6, #8cc6ea);
+}
+
+html[data-theme='tokyosky'] .post-card:hover .post-card__title::before {
+  animation: none;
+  box-shadow: 0 0 0 4px rgba(77, 159, 214, 0.2);
+}
+
+/* ============================================================
+   Post viewer / 목차
+   ============================================================ */
+
+html[data-theme='tokyosky'] .post-view {
+  background: rgba(255, 255, 255, 0.9);
+  border: 1px solid rgba(255, 255, 255, 0.7);
+  border-radius: var(--tk-radius-l);
+  box-shadow: var(--tk-shadow-1);
+}
+
+html[data-theme='tokyosky'] .post-view__header {
+  border-bottom: 1px solid var(--nier-line-soft);
+}
+
+html[data-theme='tokyosky'] .toc {
+  border-left: 2px solid var(--nier-line-soft);
+}
+
+html[data-theme='tokyosky'] .toc a {
+  border-radius: 6px;
+  padding: 1px 6px;
+  margin-left: -6px;
+  transition: background 0.15s, color 0.15s;
+}
+
+html[data-theme='tokyosky'] .toc a::before {
+  border-radius: 50%;
+  transform: none;
+  background: var(--nier-accent);
+}
+
+html[data-theme='tokyosky'] .toc a:hover {
+  background: var(--tk-sky-soft);
+  color: var(--tk-sky-ink);
+}
+
+html[data-theme='tokyosky'] .toc a:hover::before {
+  background: var(--tk-sky-ink);
+}
+
+html[data-theme='tokyosky'] .toc a[aria-current='location'] {
+  color: var(--nier-dark);
+}
+
+/* ============================================================
+   Markdown body
+   ============================================================ */
+
+html[data-theme='tokyosky'] .markdown h1 {
+  border-bottom: 0;
+  padding-bottom: 8px;
+  background: linear-gradient(90deg, var(--nier-accent), rgba(77, 159, 214, 0)) left bottom /
+    100% 2px no-repeat;
+}
+
+html[data-theme='tokyosky'] .markdown h2 {
+  border-bottom-color: var(--nier-line-soft);
+}
+
+html[data-theme='tokyosky'] .markdown h2::before {
+  border-radius: 50%;
+  transform: none;
+  background: linear-gradient(135deg, #4d9fd6, #8cc6ea);
+}
+
+html[data-theme='tokyosky'] .markdown a {
+  color: var(--nier-dark);
+  text-decoration-color: rgba(77, 159, 214, 0.55);
+  text-decoration-thickness: 1.5px;
+  border-radius: 3px;
+  transition: background 0.12s;
+}
+
+/* 본문 링크 호버 — 민트 패밀리 */
+html[data-theme='tokyosky'] .markdown a:hover {
+  background: rgba(62, 176, 160, 0.16);
+  color: var(--tk-mint-ink);
+}
+
+/* 인용 — 라벤더 패밀리 */
+html[data-theme='tokyosky'] .markdown blockquote {
+  border-left: 4px solid var(--tk-lav-line);
+  background: #f3f4fd;
+  border-radius: 0 var(--tk-radius-s) var(--tk-radius-s) 0;
+}
+
+html[data-theme='tokyosky'] .markdown hr {
+  height: 2px;
+  border-radius: 2px;
+  background: linear-gradient(90deg, transparent, var(--nier-line) 18% 82%, transparent);
+}
+
+html[data-theme='tokyosky'] .markdown img {
+  border: 1px solid rgba(46, 99, 150, 0.12);
+  border-radius: var(--tk-radius-m);
+  box-shadow: var(--tk-shadow-1);
+}
+
+html[data-theme='tokyosky'] .markdown li::marker {
+  color: var(--nier-accent);
+}
+
+/* 표 — 라운드 모서리는 separate 모델이 필요하므로 셀 경계선을 다시 정의한다 */
+html[data-theme='tokyosky'] .markdown table {
+  border-collapse: separate;
+  border-spacing: 0;
+  border: 1px solid var(--nier-line-soft);
+  border-radius: var(--tk-radius-m);
+  overflow: hidden;
+  box-shadow: var(--tk-shadow-1);
+}
+
+html[data-theme='tokyosky'] .markdown th {
+  background: var(--tk-primary-grad);
+  color: var(--tk-sky-ink);
+  font-weight: 600;
+  border-bottom: 1px solid var(--tk-sky-line);
+}
+
+html[data-theme='tokyosky'] .markdown th + th {
+  border-left: 1px solid rgba(31, 74, 110, 0.12);
+}
+
+html[data-theme='tokyosky'] .markdown td {
+  border: 0;
+  border-top: 1px solid var(--nier-line-soft);
+}
+
+html[data-theme='tokyosky'] .markdown tr:first-child td {
+  border-top: 0;
+}
+
+html[data-theme='tokyosky'] .markdown td + td {
+  border-left: 1px solid var(--nier-line-soft);
+}
+
+html[data-theme='tokyosky'] .markdown tr:nth-child(even) td {
+  background: #f7fafd;
+}
+
+html[data-theme='tokyosky'] .markdown :not(pre) > code {
+  background: #eef5fb;
+  border: 1px solid #dceaf4;
+  border-radius: 6px;
+  color: #16497a;
+}
+
+/* ============================================================
+   Code blocks — 하늘빛 라이트 터미널
+   ============================================================ */
+
+html[data-theme='tokyosky'] .markdown pre {
+  background: #f9fcfe;
+  border: 1px solid #e2eef7;
+  border-radius: var(--tk-radius-m);
+  box-shadow: var(--tk-shadow-1);
+}
+
+html[data-theme='tokyosky'] .codeblock__lines {
+  background: #f2f7fc;
+  color: #7c93aa;
+  border-right: 1px solid #e2eef7;
+}
+
+html[data-theme='tokyosky'] .codeblock__lang {
+  background: var(--tk-sky-fill);
+  color: var(--tk-sky-ink);
+  border: 0;
+  border-radius: var(--tk-radius-m) 0 var(--tk-radius-s) 0;
+}
+
+html[data-theme='tokyosky'] .codeblock__copy {
+  background: rgba(255, 255, 255, 0.92);
+  color: var(--nier-dark);
+  border: 1px solid rgba(46, 99, 150, 0.26);
+  border-radius: 0 var(--tk-radius-m) 0 var(--tk-radius-s);
+}
+
+/* COPY 호버 — 민트 패밀리 */
+html[data-theme='tokyosky'] .codeblock__copy:hover {
+  background: var(--tk-mint-fill);
+  border-color: var(--tk-mint-ink);
+  color: var(--tk-mint-ink);
+}
+
+/* hljs 팔레트 — 코드 배경 #f6fafe 대비 전 토큰 4.5:1 이상 */
+html[data-theme='tokyosky'] .hljs-comment,
+html[data-theme='tokyosky'] .hljs-quote {
+  color: #5a708a; /* comment — 4.9:1 */
+}
+
+html[data-theme='tokyosky'] .hljs-keyword,
+html[data-theme='tokyosky'] .hljs-selector-tag,
+html[data-theme='tokyosky'] .hljs-doctag,
+html[data-theme='tokyosky'] .hljs-variable.language_ {
+  color: #9333ea; /* keyword — 네온 퍼플, 5.2:1 */
+}
+
+html[data-theme='tokyosky'] .hljs-string,
+html[data-theme='tokyosky'] .hljs-regexp,
+html[data-theme='tokyosky'] .hljs-deletion {
+  color: #15803d; /* string — green, 4.9:1 */
+}
+
+html[data-theme='tokyosky'] .hljs-number,
+html[data-theme='tokyosky'] .hljs-literal,
+html[data-theme='tokyosky'] .hljs-symbol,
+html[data-theme='tokyosky'] .hljs-link,
+html[data-theme='tokyosky'] .hljs-meta {
+  color: #0369a1; /* constant — sky, 5.7:1 */
+}
+
+html[data-theme='tokyosky'] .hljs-title,
+html[data-theme='tokyosky'] .hljs-title.function_,
+html[data-theme='tokyosky'] .hljs-built_in,
+html[data-theme='tokyosky'] .hljs-addition,
+html[data-theme='tokyosky'] .hljs-selector-class {
+  color: #4338ca; /* function — indigo, 7.1:1 */
+}
+
+html[data-theme='tokyosky'] .hljs-title.class_,
+html[data-theme='tokyosky'] .hljs-name,
+html[data-theme='tokyosky'] .hljs-section {
+  color: #0f766e; /* class / tag — teal, 5.3:1 */
+}
+
+html[data-theme='tokyosky'] .hljs-type,
+html[data-theme='tokyosky'] .hljs-attr,
+html[data-theme='tokyosky'] .hljs-attribute,
+html[data-theme='tokyosky'] .hljs-selector-pseudo,
+html[data-theme='tokyosky'] .hljs-selector-attr,
+html[data-theme='tokyosky'] .hljs-template-variable {
+  color: #155e75; /* type / attr — cyan deep, 7.0:1 */
+}
+
+html[data-theme='tokyosky'] .hljs-params,
+html[data-theme='tokyosky'] .hljs-selector-id,
+html[data-theme='tokyosky'] .hljs-subst {
+  color: #be185d; /* parameter — rose, 5.8:1 */
+}
+
+html[data-theme='tokyosky'] .hljs-operator {
+  color: #4c6076; /* punctuation — 5.6:1 */
+}
+
+/* KaTeX — 민트 패밀리 바 */
+html[data-theme='tokyosky'] .markdown .katex-display {
+  border-left: 4px solid var(--tk-mint-line);
+  border-radius: 0 var(--tk-radius-s) var(--tk-radius-s) 0;
+  box-shadow: var(--tk-shadow-1);
+}
+
+/* ============================================================
+   Function graph
+   ============================================================ */
+
+html[data-theme='tokyosky'] .markdown .fngraph {
+  border: 1px solid var(--nier-line-soft);
+  border-radius: var(--tk-radius-m);
+  overflow: hidden;
+  box-shadow: var(--tk-shadow-1);
+}
+
+html[data-theme='tokyosky'] .fngraph__title {
+  background: var(--tk-primary-grad);
+  color: var(--tk-sky-ink);
+  border-bottom: 1px solid var(--tk-sky-line);
+}
+
+html[data-theme='tokyosky'] .fngraph__title::before {
+  border-radius: 50%;
+  background: var(--nier-accent);
+}
+
+html[data-theme='tokyosky'] .fngraph__cell {
+  border-radius: var(--tk-radius-s);
+  overflow: hidden;
+}
+
+/* 곡선 구분색 — c0(잉크)·c1(경고색)은 변수를 따라 자동 전환, c2·c3만 재정의 */
+html[data-theme='tokyosky'] .fngraph {
+  --fngraph-c2: #0e8577; /* teal */
+  --fngraph-c3: #7c6fd8; /* soft violet */
+}
+
+/* ============================================================
+   Editor (dev 전용) — 필드·도구바 곡률만 맞춘다 (색은 변수가 처리)
+   ============================================================ */
+
+html[data-theme='tokyosky'] .editor input,
+html[data-theme='tokyosky'] .editor textarea,
+html[data-theme='tokyosky'] .editor select {
+  border-radius: var(--tk-radius-s);
+}
+
+/* NEW POST가 스크롤 컨테이너(overflow-y: auto) 첫 요소라 hover 리프트
+   (translateY(-1px)) 시 상단이 잘린다 — 리프트 여유 공간을 확보 */
+html[data-theme='tokyosky'] .editor__list {
+  padding-top: 4px;
+}
+
+html[data-theme='tokyosky'] .mdbar button,
+html[data-theme='tokyosky'] .mdbar select {
+  border-radius: 6px;
+}
+
+/* ============================================================
+   Responsive
+   ============================================================ */
+
+@media (max-width: 768px) {
+  html[data-theme='tokyosky'] .side-bar {
+    background: rgba(246, 251, 254, 0.94);
+    -webkit-backdrop-filter: blur(12px);
+    backdrop-filter: blur(12px);
+    border-right: 1px solid var(--nier-line-soft);
+  }
+
+  html[data-theme='tokyosky'] .post-view {
+    border-radius: var(--tk-radius-m);
+  }
+}

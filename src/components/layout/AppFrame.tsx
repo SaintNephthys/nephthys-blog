@@ -1,8 +1,9 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Outlet, useLocation } from 'react-router-dom'
 import Background from './Background'
 import TopBar from './TopBar'
 import SideTabBar, { type NavItem } from './SideTabBar'
+import { applyTheme, loadTheme, type ThemeId } from '../../lib/theme'
 
 const NAV_ITEMS: NavItem[] = [
   { label: 'HOME', to: '/' },
@@ -18,19 +19,26 @@ const NAV_ITEMS: NavItem[] = [
  */
 function AppFrame() {
   const [navOpen, setNavOpen] = useState(false)
+  const [theme, setTheme] = useState<ThemeId>(loadTheme)
   const location = useLocation()
   // 에디터는 폼/프리뷰 2열 구성이므로 본문 폭 제한 없이 화면 전체를 쓴다
   const wide = location.pathname.startsWith('/editor')
 
+  useEffect(() => {
+    applyTheme(theme)
+  }, [theme])
+
   return (
     <div className="app">
-      <Background />
+      <Background theme={theme} />
       <TopBar onToggleNav={() => setNavOpen((open) => !open)} />
       <div className="app-body">
         <SideTabBar
           items={NAV_ITEMS}
           open={navOpen}
           onNavigate={() => setNavOpen(false)}
+          theme={theme}
+          onThemeChange={setTheme}
         />
         <main
           className={`app-content${wide ? ' app-content--wide' : ''}`}

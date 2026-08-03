@@ -1,8 +1,10 @@
 import { Fragment, useState } from 'react'
 import { NavLink } from 'react-router-dom'
 import FontSizeControl from '../widgets/FontSizeControl'
+import ThemeToggle from '../widgets/ThemeToggle'
 import { collectCategories } from '../../lib/posts'
 import { usePostIndex } from '../../lib/usePostIndex'
+import type { ThemeId } from '../../lib/theme'
 
 export interface NavItem {
   label: string
@@ -54,11 +56,14 @@ interface SideTabBarProps {
   items: NavItem[]
   open: boolean
   onNavigate: () => void
+  theme: ThemeId
+  onThemeChange: (theme: ThemeId) => void
 }
 
-function SideTabBar({ items, open, onNavigate }: SideTabBarProps) {
+function SideTabBar({ items, open, onNavigate, theme, onThemeChange }: SideTabBarProps) {
   return (
     <nav className={`side-bar${open ? ' open' : ''}`}>
+      <ThemeToggle theme={theme} onChange={onThemeChange} />
       <FontSizeControl />
       <div className="side-bar__header">MENU</div>
       <div className="side-bar__nav">

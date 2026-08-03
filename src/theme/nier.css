@@ -1,5 +1,7 @@
 /* ============================================================
-   NieR:Automata UI theme (reference-files/nier_theme.jpeg)
+   NieR:Automata UI theme "CITYRUIN" (reference-files/nier_theme.jpeg)
+   --nier-* 변수는 테마 공용 시맨틱 슬롯 — tokyosky.css가
+   html[data-theme='tokyosky'] 스코프에서 값을 갈아끼운다.
    ============================================================ */
 
 :root {
@@ -313,6 +315,33 @@ a {
   height: calc(100vh - var(--topbar-h));
   padding: 24px 16px;
   overflow-y: auto;
+}
+
+/* 테마 전환 토글 (side-bar 최상단, font-control 위) */
+.theme-control {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+
+.theme-control button {
+  flex: 1;
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+  letter-spacing: 0.08em;
+  padding: 5px 0;
+  background: var(--nier-panel);
+  border: 1px solid var(--nier-dark);
+  color: var(--nier-text);
+  box-shadow: 2px 2px 0 rgba(69, 65, 56, 0.25);
+  cursor: pointer;
+  transition: background 0.1s, color 0.1s;
+}
+
+.theme-control button:hover,
+.theme-control button.active {
+  background: var(--nier-dark);
+  color: var(--nier-text-inv);
 }
 
 /* 글씨 크기 조절 (side-bar 상단) */
