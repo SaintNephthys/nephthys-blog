@@ -11,11 +11,13 @@ import {
 import ReactMarkdown, { type Components, type ExtraProps } from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import remarkMath from 'remark-math'
+import remarkBreaks from 'remark-breaks'
 import rehypeRaw from 'rehype-raw'
 import rehypeKatex from 'rehype-katex'
 import rehypeHighlight from 'rehype-highlight'
 import rehypeSlug from 'rehype-slug'
 import type { ElementContent } from 'hast'
+import { expandBlankRuns } from '../../lib/markdownBreaks'
 import 'katex/dist/katex.min.css'
 
 // 함수 그래프는 d3 청크가 초기 번들·PostPage 청크에 섞이지 않도록 lazy —
@@ -124,6 +126,9 @@ function parseAltSize(alt: string | undefined): { alt: string; scale?: number } 
 
 /** 게시물 뷰어와 에디터 프리뷰가 공용으로 사용하는 Markdown 렌더러 */
 function MarkdownRenderer({ content, assetBase }: MarkdownRendererProps) {
+  // 에디터에 보이는 줄 간격 그대로 렌더 — 연속 빈 줄을 <br> 스페이서로 확장
+  // (soft break → <br>는 remarkBreaks 담당)
+  const expanded = useMemo(() => expandBlankRuns(content), [content])
   const components = useMemo<Components>(
     () => ({
       pre: PreOrGraph,
@@ -166,7 +171,7 @@ function MarkdownRenderer({ content, assetBase }: MarkdownRendererProps) {
   return (
     <div className="markdown">
       <ReactMarkdown
-        remarkPlugins={[remarkGfm, remarkMath]}
+        remarkPlugins={[remarkGfm, remarkMath, remarkBreaks]}
         rehypePlugins={[
           rehypeRaw,
           rehypeKatex,
@@ -176,7 +181,7 @@ function MarkdownRenderer({ content, assetBase }: MarkdownRendererProps) {
         ]}
         components={components}
       >
-        {content}
+        {expanded}
       </ReactMarkdown>
     </div>
   )
