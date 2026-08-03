@@ -16,7 +16,7 @@
 
 html[data-theme='tokyosky'] {
   /* 팔레트 — '하늘색 느낌이 나는 흰색' 바탕 + 잉크 블루 텍스트 */
-  --nier-bg: #f4f9fd;
+  --nier-bg: #eef5fb;
   --nier-bg-dim: #e7f0f8;
   --nier-panel: #ffffff;
   --nier-panel-dim: #f5f9fd;
@@ -109,10 +109,12 @@ html[data-theme='tokyosky'] ::-webkit-scrollbar-thumb {
    Background — 하늘빛 흰색 그라데이션 + 선화(헤일로 스파이어·스카이라인)
    ============================================================ */
 
+/* 배경 캔버스는 표면(흰 패널)보다 하늘톤을 한 단계 진하게 — 흰 헤일로 글로우가
+   배경 위에서 빛으로 드러나기 위한 대비 확보 (헤일로 링이 지나는 중단이 특히) */
 html[data-theme='tokyosky'] .bg-layer {
   background:
-    radial-gradient(ellipse 58% 40% at 50% -8%, rgba(255, 255, 255, 0.95), transparent 72%),
-    linear-gradient(180deg, #e2eff9 0%, #f2f8fd 40%, #fbfdff 70%, #ffffff 100%);
+    radial-gradient(ellipse 58% 40% at 50% -8%, rgba(255, 255, 255, 0.9), transparent 72%),
+    linear-gradient(180deg, #cfe5f6 0%, #dfeefa 38%, #e9f3fb 68%, #f0f7fc 100%);
 }
 
 /* 도시 블럭 격자 — 넓고 희미하게, 지평선 쪽으로 갈수록 또렷해진다 */
@@ -138,15 +140,31 @@ html[data-theme='tokyosky'] .bg-layer::before {
 }
 
 /* 헤일로 스파이어 — 뷰포트보다 넓게(200vw) 확대해 상단에 걸친다.
-   링 3개가 좌우로 화면을 벗어나며 잘리는 것이 의도된 연출 */
+   링 3개가 좌우로 화면을 벗어나며 잘리는 것이 의도된 연출.
+   '백색 빛의 선' 연출: 흰 코어 스트로크 + 하늘빛 광륜(drop-shadow 이중 글로우) —
+   밝은 배경에서는 파란 광륜이 흰 코어를 빛나는 선으로 읽히게 한다 */
 .bg-tokyo__halo {
   position: absolute;
   top: 20vh;
   left: 50%;
-  width: 200vw;
+  /* 데스크톱 전환점(1200px)까지는 뷰포트 비례(200vw)로 확대, 그 이상에서는
+     200% × 1200px = 2400px에 고정 — 가운데 정렬(left 50% + translateX)과
+     상하 앵커(top 20vh)는 그대로 유지된다 */
+  width: min(200vw, 2400px);
   transform: translateX(-50%);
-  color: #b2d2ea;
-  opacity: 0.45;
+  color: #ffffff;
+  opacity: 0.9;
+  /* 5중 블룸 — 드롭섀도는 앞 단계 결과에 누적 적용되어 번짐이 증폭된다:
+     흰 근접광 2겹(코어 또렷) + 하늘빛 확산광 3겹(멀리 퍼지는 산란) */
+  filter: drop-shadow(0 0 2px rgba(255, 255, 255, 1))
+    drop-shadow(0 0 6px rgba(255, 255, 255, 0.7))
+    drop-shadow(0 0 14px rgba(120, 180, 235, 0.6))
+    drop-shadow(0 0 32px rgba(120, 180, 235, 0.4))
+    drop-shadow(0 0 64px rgba(120, 180, 235, 0.25));
+}
+
+.bg-tokyo__halo g {
+  stroke-width: 1.5;
 }
 
 /* ============================================================
