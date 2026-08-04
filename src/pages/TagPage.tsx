@@ -1,5 +1,7 @@
 import { useParams } from 'react-router-dom'
+import FilterBar from '../components/post/FilterBar'
 import PostList from '../components/post/PostList'
+import PageHero from '../components/widgets/PageHero'
 import { usePostIndex } from '../lib/usePostIndex'
 
 function TagPage() {
@@ -9,8 +11,8 @@ function TagPage() {
 
   return (
     <>
-      <h1 className="page-title">TAG: {tag}</h1>
-      <p className="page-subtitle">게시물 {filtered.length}건</p>
+      <PageHero title={`TAG: ${tag}`} subtitle={`게시물 ${filtered.length}건`} />
+      <FilterBar />
       {loading && <div className="loading">LOADING</div>}
       {error && <div className="empty-note">{error}</div>}
       {!loading && !error && <PostList posts={filtered} />}

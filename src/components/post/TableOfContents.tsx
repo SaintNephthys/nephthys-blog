@@ -4,10 +4,13 @@ import GithubSlugger from 'github-slugger'
 interface TocEntry {
   text: string
   id: string
+  /** 1 = `# `(최상위 섹션 컨벤션), 2 = `## ` 하위 항목 */
+  level: 1 | 2
 }
 
 /**
- * 본문에서 H1(`# `) 헤더를 추출한다.
+ * 본문에서 H1(`# `)·H2(`## `) 헤더를 추출한다 — H1이 최상위 섹션 컨벤션이고
+ * H2는 들여쓴 하위 항목으로 표시한다.
  * id는 rehype-slug와 동일한 github-slugger 규칙으로 생성해 앵커가 일치한다.
  */
 function extractHeadings(content: string): TocEntry[] {
@@ -21,11 +24,11 @@ function extractHeadings(content: string): TocEntry[] {
       continue
     }
     if (inFence) continue
-    const match = /^#\s+(.+?)\s*$/.exec(line)
+    const match = /^(#{1,2})\s+(.+?)\s*$/.exec(line)
     if (match) {
       // 인라인 서식 문법을 벗겨낸 순수 텍스트 기준으로 slug 생성
-      const text = match[1].replace(/[*_`~]|<\/?u>/g, '')
-      entries.push({ text, id: slugger.slug(text) })
+      const text = match[2].replace(/[*_`~]|<\/?u>/g, '')
+      entries.push({ text, id: slugger.slug(text), level: match[1].length as 1 | 2 })
     }
   }
   return entries
@@ -35,10 +38,14 @@ interface TableOfContentsProps {
   content: string
 }
 
-/** 게시물 우측의 목차 — 클릭 시 해당 섹션으로 스크롤, 현재 보는 섹션은 볼드 표시 */
+/**
+ * 게시물 목차 — 1280px 이상에서는 우측 레인 sticky, 미만에서는 우하단 FAB + 시트.
+ * 클릭 시 해당 섹션으로 스크롤, 현재 보는 섹션은 강조 표시(스크롤 스파이).
+ */
 function TableOfContents({ content }: TableOfContentsProps) {
   const headings = useMemo(() => extractHeadings(content), [content])
   const [activeId, setActiveId] = useState<string | null>(null)
+  const [sheetOpen, setSheetOpen] = useState(false)
 
   useEffect(() => {
     const topbarH =
@@ -82,26 +89,56 @@ function TableOfContents({ content }: TableOfContentsProps) {
     document.getElementById(id)?.scrollIntoView({ behavior: 'smooth' })
   }
 
+  const list = (onPick?: () => void) => (
+    <ul className="toc__list">
+      {headings.map((h) => (
+        <li key={h.id} className={h.level === 2 ? 'toc__l2' : undefined}>
+          <a
+            href={`#${h.id}`}
+            aria-current={activeId === h.id ? 'location' : undefined}
+            onClick={(e) => {
+              e.preventDefault()
+              jump(h.id)
+              onPick?.()
+            }}
+          >
+            {h.text}
+          </a>
+        </li>
+      ))}
+    </ul>
+  )
+
   return (
-    <nav className="toc" aria-label="목차">
-      <div className="toc__title">CONTENTS</div>
-      <ul>
-        {headings.map((h) => (
-          <li key={h.id}>
-            <a
-              href={`#${h.id}`}
-              aria-current={activeId === h.id ? 'location' : undefined}
-              onClick={(e) => {
-                e.preventDefault()
-                jump(h.id)
-              }}
-            >
-              {h.text}
-            </a>
-          </li>
-        ))}
-      </ul>
-    </nav>
+    <>
+      <nav className="toc" aria-label="목차">
+        <div className="toc__title">CONTENTS</div>
+        {list()}
+      </nav>
+      <button
+        type="button"
+        className="toc-fab"
+        onClick={() => setSheetOpen((open) => !open)}
+        aria-label={sheetOpen ? '목차 닫기' : '목차 열기'}
+        aria-expanded={sheetOpen}
+      >
+        ≣
+      </button>
+      {sheetOpen && (
+        <>
+          <button
+            type="button"
+            className="scrim scrim--clear"
+            onClick={() => setSheetOpen(false)}
+            aria-label="목차 닫기"
+          />
+          <nav className="toc-sheet" aria-label="목차">
+            <div className="toc__title">CONTENTS</div>
+            {list(() => setSheetOpen(false))}
+          </nav>
+        </>
+      )}
+    </>
   )
 }
 

@@ -5,7 +5,7 @@ interface ThemeToggleProps {
   onChange: (theme: ThemeId) => void
 }
 
-/** 테마 전환 세그먼트 토글 (side-bar 상단, font-control 위) */
+/** 테마 전환 세그먼트 토글 (상단바 ◐ 화면 설정 팝오버 안) */
 function ThemeToggle({ theme, onChange }: ThemeToggleProps) {
   return (
     <div className="theme-control" role="group" aria-label="테마 선택">
