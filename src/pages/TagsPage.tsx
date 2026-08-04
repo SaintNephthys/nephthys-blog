@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom'
+import PageHero from '../components/widgets/PageHero'
 import Panel from '../components/widgets/Panel'
 import { collectTags } from '../lib/posts'
 import { usePostIndex } from '../lib/usePostIndex'
@@ -9,8 +10,7 @@ function TagsPage() {
 
   return (
     <>
-      <h1 className="page-title">TAGS</h1>
-      <p className="page-subtitle">태그 {tags.size}건</p>
+      <PageHero title="TAGS" subtitle={`태그 ${tags.size}건`} />
       {loading && <div className="loading">LOADING</div>}
       {error && <div className="empty-note">{error}</div>}
       {!loading && !error && (

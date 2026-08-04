@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom'
 import type { PostMeta } from '../../lib/posts'
 import MarkdownRenderer from './MarkdownRenderer'
 import TagList from './TagList'
@@ -14,6 +15,14 @@ function PostViewer({ meta, content }: PostViewerProps) {
         <h1 className="post-view__title">{meta.title}</h1>
         <div className="post-view__meta">
           <span>{meta.date}</span>
+          {meta.category && (
+            <Link
+              to={`/category/${encodeURIComponent(meta.category)}`}
+              className="tag-chip tag-chip--category"
+            >
+              ▣ {meta.category}
+            </Link>
+          )}
           <TagList tags={meta.tags} />
         </div>
       </header>

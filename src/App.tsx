@@ -2,6 +2,7 @@ import { lazy, Suspense } from 'react'
 import { HashRouter, Navigate, Route, Routes } from 'react-router-dom'
 import AppFrame from './components/layout/AppFrame'
 import HomePage from './pages/HomePage'
+import PostsPage from './pages/PostsPage'
 import TagsPage from './pages/TagsPage'
 import TagPage from './pages/TagPage'
 import CategoryPage from './pages/CategoryPage'
@@ -20,6 +21,7 @@ function App() {
       <Routes>
         <Route element={<AppFrame />}>
           <Route index element={<HomePage />} />
+          <Route path="posts" element={<PostsPage />} />
           <Route
             path="post/:slug"
             element={

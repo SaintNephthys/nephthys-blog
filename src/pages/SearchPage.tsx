@@ -1,5 +1,7 @@
 import { useParams } from 'react-router-dom'
+import FilterBar from '../components/post/FilterBar'
 import PostList from '../components/post/PostList'
+import PageHero from '../components/widgets/PageHero'
 import { usePostIndex } from '../lib/usePostIndex'
 
 function SearchPage() {
@@ -14,10 +16,8 @@ function SearchPage() {
 
   return (
     <>
-      <h1 className="page-title">SEARCH</h1>
-      <p className="page-subtitle">
-        "{query}" 검색 결과 {results.length}건
-      </p>
+      <PageHero title="SEARCH" subtitle={`"${query}" 검색 결과 ${results.length}건`} />
+      <FilterBar initialQuery={query} />
       {loading && <div className="loading">LOADING</div>}
       {error && <div className="empty-note">{error}</div>}
       {!loading && !error && <PostList posts={results} variant="search" />}

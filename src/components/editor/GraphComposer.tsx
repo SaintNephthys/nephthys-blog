@@ -254,7 +254,7 @@ function GraphComposer({ onInsert, onClose }: GraphComposerProps) {
   }
 
   // portal로 body에 렌더 — .app-content(z-index: 1) 스태킹 컨텍스트 안에 갇히면
-  // z-index 40이어도 .side-bar(z-index: 10) 뒤로 숨는다
+  // z-index 40이어도 상단바(z-index: 20) 등 상위 레이어 뒤로 숨는다
   return createPortal(
     <div className="graphdlg-backdrop" onClick={onClose}>
       <div

@@ -1,23 +1,21 @@
-import { useParams } from 'react-router-dom'
 import FilterBar from '../components/post/FilterBar'
 import PostList from '../components/post/PostList'
 import PageHero from '../components/widgets/PageHero'
 import { usePostIndex } from '../lib/usePostIndex'
 
-function TagPage() {
-  const { tag } = useParams<{ tag: string }>()
+/** 전체 게시물 목록 (구 홈 화면) — 홈(/)은 랜딩, 목록은 /posts */
+function PostsPage() {
   const { posts, loading, error } = usePostIndex()
-  const filtered = posts.filter((p) => tag !== undefined && p.tags.includes(tag))
 
   return (
     <>
-      <PageHero title={`TAG: ${tag}`} subtitle={`게시물 ${filtered.length}건`} />
-      <FilterBar />
+      <PageHero title="ARCHIVES" subtitle={`전체 게시물 ${posts.length}건`} />
+      <FilterBar active="ALL" />
       {loading && <div className="loading">LOADING</div>}
       {error && <div className="empty-note">{error}</div>}
-      {!loading && !error && <PostList posts={filtered} />}
+      {!loading && !error && <PostList posts={posts} />}
     </>
   )
 }
 
-export default TagPage
+export default PostsPage

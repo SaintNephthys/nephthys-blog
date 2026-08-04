@@ -27,12 +27,6 @@ function PostCard({ post, variant = 'default' }: PostCardProps) {
     // 제목 링크의 ::after 오버레이가 카드 전체 클릭을 담당한다(오버레이 링크 패턴).
     // 칩 링크들은 z-index로 오버레이 위에 떠서 hover·클릭이 독립 동작한다.
     <div className="post-card">
-      {variant === 'default' && (
-        <div className="post-card__meta">
-          <span>{post.date}</span>
-          <CategoryChip category={post.category} />
-        </div>
-      )}
       <h2 className="post-card__title">
         <Link to={`/post/${post.slug}`} className="post-card__link">
           {post.title}
@@ -48,9 +42,16 @@ function PostCard({ post, variant = 'default' }: PostCardProps) {
           {post.summary && <p className="post-card__summary">{post.summary}</p>}
         </>
       ) : (
+        // 기본 카드: 제목 → 요약(3줄 말줄임) → 하단 고정 푸터(날짜·카테고리·태그)
         <>
           {post.summary && <p className="post-card__summary">{post.summary}</p>}
-          <TagList tags={post.tags} />
+          <div className="post-card__foot">
+            <div className="post-card__meta">
+              <span>{post.date}</span>
+              <CategoryChip category={post.category} />
+            </div>
+            <TagList tags={post.tags} />
+          </div>
         </>
       )}
     </div>
