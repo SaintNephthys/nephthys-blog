@@ -81,6 +81,7 @@ html[data-theme='tokyosky'] .font-control button,
 html[data-theme='tokyosky'] .editor-tabs__tab,
 html[data-theme='tokyosky'] .filter-pill,
 html[data-theme='tokyosky'] .filter-bar__search input,
+html[data-theme='tokyosky'] .top-bar__ext,
 html[data-theme='tokyosky'] .top-bar__search-drop input,
 html[data-theme='tokyosky'] .post-card__meta,
 html[data-theme='tokyosky'] .post-view__meta,
@@ -93,6 +94,7 @@ html[data-theme='tokyosky'] .page-hero__subtitle {
 
 /* 시스템 라벨(섹션 헤더·목차 제목·상태 문구) — 폰트만 sans로, 넓은 자간은 유지 */
 html[data-theme='tokyosky'] .top-pop__label,
+html[data-theme='tokyosky'] .home-latest__title,
 html[data-theme='tokyosky'] .toc__title,
 html[data-theme='tokyosky'] .loading,
 html[data-theme='tokyosky'] .empty-note,
@@ -231,10 +233,12 @@ html[data-theme='tokyosky'] .top-nav__item {
   transition: background 0.15s, color 0.15s;
 }
 
-html[data-theme='tokyosky'] .top-nav__item::before {
-  border-radius: 50%;
-  transform: none;
-  background: var(--nier-accent);
+/* 내비 아이콘 — 라운드 선 마감(소프트 형태 언어) + 평시 하늘 액센트 틴트 */
+html[data-theme='tokyosky'] .top-nav__icon {
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  color: var(--nier-accent);
+  transition: color 0.15s;
 }
 
 html[data-theme='tokyosky'] .top-nav__item:hover {
@@ -242,8 +246,8 @@ html[data-theme='tokyosky'] .top-nav__item:hover {
   color: var(--tk-sky-ink);
 }
 
-html[data-theme='tokyosky'] .top-nav__item:hover::before {
-  background: var(--tk-sky-ink);
+html[data-theme='tokyosky'] .top-nav__item:hover .top-nav__icon {
+  color: var(--tk-sky-ink);
 }
 
 html[data-theme='tokyosky'] .top-nav__item.active {
@@ -253,8 +257,22 @@ html[data-theme='tokyosky'] .top-nav__item.active {
   box-shadow: var(--tk-shadow-1);
 }
 
-html[data-theme='tokyosky'] .top-nav__item.active::before {
-  background: var(--nier-accent);
+html[data-theme='tokyosky'] .top-nav__item.active .top-nav__icon {
+  color: var(--nier-accent);
+}
+
+/* 외부 링크 chip(GITHUB) — 아이콘 버튼과 같은 아웃라인 계열 */
+html[data-theme='tokyosky'] .top-bar__ext {
+  border: 1px solid rgba(46, 99, 150, 0.3);
+  color: var(--nier-dark);
+  font-weight: 600;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+
+html[data-theme='tokyosky'] .top-bar__ext:hover {
+  background: var(--tk-sky-fill);
+  color: var(--tk-sky-ink);
+  border-color: var(--tk-sky-line);
 }
 
 html[data-theme='tokyosky'] .top-bar__search-drop input {

@@ -40,7 +40,7 @@ function FilterBar({ active, initialQuery = '' }: FilterBarProps) {
         />
       </form>
       <nav className="filter-bar__cats" aria-label="카테고리 필터">
-        <Link className={`filter-pill${active === 'ALL' ? ' active' : ''}`} to="/">
+        <Link className={`filter-pill${active === 'ALL' ? ' active' : ''}`} to="/posts">
           ALL <span className="count">{posts.length}</span>
         </Link>
         {[...categories.entries()].map(([name, count]) => (

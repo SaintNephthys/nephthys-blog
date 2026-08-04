@@ -20,7 +20,10 @@
   --nier-alert: #b05a4a;
 
   --font-sans: 'Noto Sans KR', 'Apple SD Gothic Neo', sans-serif;
-  --font-mono: 'IBM Plex Mono', 'Menlo', monospace;
+  /* CITYRUIN 모노 — Chivo Mono(SIL OFL): 0 안에 점·선이 없는 plain zero(실측 확인).
+     폴백도 Courier New(민무늬 0) — Menlo는 슬래시 0이라 폰트 로드 전에 선이 보인다.
+     TOKYOSKY는 tokyosky.css가 --font-mono를 IBM Plex Mono로 재정의한다 */
+  --font-mono: 'Chivo Mono', 'Courier New', monospace;
 
   --topbar-h: 52px;
 
@@ -240,9 +243,14 @@ a {
   letter-spacing: 0.35em;
   font-weight: 700;
   font-size: 1rem;
-  /* 좁은 폭에서 넘치지 않도록 축소·말줄임 허용 */
+  /* 좁은 폭에서 넘치지 않도록 축소 허용 — overflow 클리핑은 텍스트 스팬에만
+     적용한다(로고 마크는 45° 회전이라 레이아웃 박스 밖으로 꼭짓점이 돌출) */
   min-width: 0;
   flex: 0 1 auto;
+}
+
+.top-bar__logo-text {
+  min-width: 0;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -294,14 +302,12 @@ a {
   cursor: pointer;
 }
 
-.top-nav__item::before {
-  content: '';
-  width: 6px;
-  height: 6px;
-  background: var(--nier-text-inv);
-  transform: rotate(45deg);
-  flex-shrink: 0;
-  transition: background 0.1s;
+/* 항목별 SVG 아이콘 — stroke: currentColor라 항목 상태 색(반전 등)을 그대로 따른다.
+   선 마감은 테마별: CITYRUIN 기본(butt/miter — 각짐), TOKYOSKY는 라운드 오버라이드 */
+.top-nav__icon {
+  flex: none;
+  width: 0.875rem;
+  height: 0.875rem;
 }
 
 .top-nav__item:hover,
@@ -310,13 +316,37 @@ a {
   color: var(--nier-dark);
 }
 
-.top-nav__item:hover::before,
-.top-nav__item.active::before {
-  background: var(--nier-dark);
-}
-
 .top-bar__spacer {
   flex: 1;
+}
+
+/* 외부 링크(GITHUB) — 사이트 내비와 성격이 달라 세그먼트에서 분리한 우측 chip.
+   1024px 미만에서는 햄버거 메뉴 패널의 항목으로 대체된다 */
+.top-bar__ext {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 7px;
+  padding: 4px 13px;
+  border: 1px solid var(--nier-text-inv);
+  border-radius: var(--nier-radius-pill);
+  color: var(--nier-text-inv);
+  text-decoration: none;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  letter-spacing: 0.16em;
+  transition: background 0.1s, color 0.1s;
+}
+
+.top-bar__ext::after {
+  content: '↗';
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+}
+
+.top-bar__ext:hover {
+  background: var(--nier-text-inv);
+  color: var(--nier-dark);
 }
 
 .top-bar__search-drop input {
@@ -441,6 +471,15 @@ a {
 .top-menu__item:hover::before,
 .top-menu__item.active::before {
   background: var(--nier-text-inv);
+}
+
+/* 메뉴 패널의 외부 링크 항목(GITHUB) — 우측 끝 ↗ 표시 */
+.top-menu__item--ext::after {
+  content: '↗';
+  margin-left: auto;
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  opacity: 0.7;
 }
 
 /* 팝오버·패널 뒤의 클릭 스크림 — 바깥 클릭으로 닫힌다 */
@@ -714,6 +753,40 @@ a {
 /* 게시물 0건 카테고리 — 노출은 유지하되 시각적 무게만 낮춘다 */
 .filter-pill--empty {
   opacity: 0.55;
+}
+
+/* ============================================================
+   홈 랜딩 — 워드마크 히어로 + 최신 글 섹션 (전체 목록은 /posts)
+   ============================================================ */
+
+.home-latest {
+  margin-top: 8px;
+}
+
+.home-latest__title {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  font-weight: 500;
+  letter-spacing: 0.3em;
+  color: var(--nier-text-dim);
+  margin: 0 0 14px;
+}
+
+.home-latest__title::before,
+.home-latest__title::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--nier-line);
+}
+
+.home-more {
+  display: flex;
+  justify-content: center;
+  margin-top: 26px;
 }
 
 .loading,
@@ -2221,7 +2294,8 @@ a {
 
 /* 상단 내비가 접히는 폭 — 햄버거 + 메뉴 패널로 전환 (태블릿 포함) */
 @media (max-width: 1023px) {
-  .top-nav {
+  .top-nav,
+  .top-bar__ext {
     display: none;
   }
 
