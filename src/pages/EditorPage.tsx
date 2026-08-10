@@ -6,6 +6,11 @@ import GraphGuide from '../components/editor/GraphGuide'
 import MarkdownToolbar, { type EditorTextApi } from '../components/editor/MarkdownToolbar'
 import MarkdownRenderer from '../components/post/MarkdownRenderer'
 import Panel from '../components/widgets/Panel'
+import {
+  BOOK_CATEGORY,
+  withBookTemplate,
+  withoutDefaultBookTemplate,
+} from '../lib/book'
 import { markdownLineBreak } from '../lib/markdownEdit'
 import { invalidatePostIndex } from '../lib/posts'
 import {
@@ -329,12 +334,36 @@ function EditorPage() {
   if (form?.category) categorySet.add(form.category)
   const categories = [...categorySet].sort((a, b) => a.localeCompare(b, 'ko'))
 
+  /**
+   * 카테고리 변경 — BOOK 전환 시 본문 최상단에 ```book 템플릿(에디터 전용 —
+   * 공개 md에서는 빌드가 제거)을 삽입하고, BOOK에서 벗어날 때 사용자가 수정하지
+   * 않은 기본 템플릿은 자동 삭제한다. BOOK 태그도 카테고리에 맞춰 자동
+   * 추가/삭제한다 — BOOK 태그는 수동 부여 대상이 아니라 이 동기화가 관리한다.
+   * (BlockEditor는 content prop 변경을 CM 문서에 반영하므로 폼 상태 갱신으로 충분)
+   */
+  const applyCategory = (category: string) => {
+    if (!form || category === form.category) return
+    let content = form.content
+    if (category === BOOK_CATEGORY) content = withBookTemplate(content)
+    else if (form.category === BOOK_CATEGORY) content = withoutDefaultBookTemplate(content)
+    if (category === BOOK_CATEGORY || form.category === BOOK_CATEGORY) {
+      const tags = tagsInput
+        .split(',')
+        .map((t) => t.trim())
+        .filter(Boolean)
+        .filter((t) => t !== BOOK_CATEGORY)
+      if (category === BOOK_CATEGORY) tags.unshift(BOOK_CATEGORY)
+      setTagsInput(tags.join(', '))
+    }
+    updateForm(content === form.content ? { category } : { category, content })
+  }
+
   const changeCategory = (value: string) => {
     if (value === '__new__') {
       const name = window.prompt('새 카테고리 이름을 입력하세요')?.trim()
-      if (name) updateForm({ category: name })
+      if (name) applyCategory(name)
     } else {
-      updateForm({ category: value })
+      applyCategory(value)
     }
   }
 

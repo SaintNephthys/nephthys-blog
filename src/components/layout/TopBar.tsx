@@ -41,6 +41,17 @@ const NAV_ICONS: Record<string, React.ReactNode> = {
       <circle cx="5.6" cy="5.6" r="1" fill="none" stroke="currentColor" strokeWidth="1.2" />
     </svg>
   ),
+  // 책 — 표지 + 책등
+  BOOK: (
+    <svg className="top-nav__icon" viewBox="0 0 16 16" aria-hidden="true">
+      <path
+        d="M3.6 2.8h8.8v10.4H3.6zM6 2.8v10.4M8 6h2.8"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.4"
+      />
+    </svg>
+  ),
   // 연필 — 획 + 촉
   EDITOR: (
     <svg className="top-nav__icon" viewBox="0 0 16 16" aria-hidden="true">
@@ -54,11 +65,18 @@ const NAV_ICONS: Record<string, React.ReactNode> = {
   ),
 }
 
-const NAV_ITEMS = [
+// 새 내비 항목은 이 배열에 추가한다 — EDITOR는 아래에서 항상 마지막에 붙는다
+const SITE_NAV_ITEMS = [
   { label: 'HOME', to: '/' },
   { label: 'POST', to: '/posts' },
   { label: 'TAGS', to: '/tags' },
-  // 에디터는 로컬 dev 전용 페이지 — 배포된 사이트의 메뉴에는 노출하지 않는다
+  { label: 'BOOK', to: '/books' },
+]
+
+const NAV_ITEMS = [
+  ...SITE_NAV_ITEMS,
+  // 에디터는 로컬 dev 전용 페이지(배포된 사이트의 메뉴에는 미노출) —
+  // 로컬에서는 항상 내비 가장 우측에 위치한다
   ...(import.meta.env.DEV ? [{ label: 'EDITOR', to: '/editor' }] : []),
 ]
 
