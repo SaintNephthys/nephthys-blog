@@ -1344,6 +1344,52 @@ a {
   animation: nier-blink 0.6s steps(2) infinite;
 }
 
+/* 홈 하단 미니 진열장 — 커버·행 높이 축소 (기능은 /books와 동일) */
+.home-books {
+  margin-top: 36px;
+}
+
+.bookshelf--mini {
+  --book-row: 10.75rem;
+  grid-template-columns: repeat(auto-fill, minmax(6.25rem, 1fr));
+  column-gap: 12px;
+}
+
+.bookshelf--mini .book-slot {
+  width: 6.25rem;
+}
+
+.bookshelf--mini .book-cover {
+  padding: 9px 9px 9px 17px;
+}
+
+.bookshelf--mini .book-cover__spine {
+  width: 11px;
+}
+
+.bookshelf--mini .book-cover__frame {
+  inset: 5px 5px 5px 14px;
+}
+
+.bookshelf--mini .book-cover__sigil {
+  width: 1.6rem;
+  height: 1.6rem;
+  outline-offset: 2px;
+}
+
+.bookshelf--mini .book-cover__plate {
+  gap: 2px;
+  padding: 5px 4px;
+}
+
+.bookshelf--mini .book-cover__title {
+  font-size: 0.65625rem;
+}
+
+.bookshelf--mini .book-cover__cat {
+  font-size: 0.5625rem;
+}
+
 /* 게시물 상단 도서 배너 — ```book 펜스의 렌더 */
 .book-banner {
   display: flex;
