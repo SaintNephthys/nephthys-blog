@@ -9,6 +9,7 @@ function isGridRoute(pathname: string): boolean {
   return (
     pathname === '/' ||
     pathname === '/posts' ||
+    pathname === '/books' ||
     pathname === '/tags' ||
     pathname.startsWith('/category/') ||
     pathname.startsWith('/tag/') ||

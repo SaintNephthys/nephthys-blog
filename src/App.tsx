@@ -5,6 +5,7 @@ import HomePage from './pages/HomePage'
 import PostsPage from './pages/PostsPage'
 import TagsPage from './pages/TagsPage'
 import TagPage from './pages/TagPage'
+import BooksPage from './pages/BooksPage'
 import CategoryPage from './pages/CategoryPage'
 import SearchPage from './pages/SearchPage'
 
@@ -30,6 +31,7 @@ function App() {
               </Suspense>
             }
           />
+          <Route path="books" element={<BooksPage />} />
           <Route path="tags" element={<TagsPage />} />
           <Route path="tag/:tag" element={<TagPage />} />
           <Route path="category/:category" element={<CategoryPage />} />

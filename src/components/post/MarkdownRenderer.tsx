@@ -20,6 +20,8 @@ import type { ElementContent } from 'hast'
 import { expandBlankRuns } from '../../lib/markdownBreaks'
 import 'katex/dist/katex.min.css'
 
+import BookBanner from './BookCard'
+
 // 함수 그래프는 d3 청크가 초기 번들·PostPage 청크에 섞이지 않도록 lazy —
 // graph 펜스가 있는 게시물에서만 로드된다 (KaTeX와 동일한 격리 원칙)
 const FunctionGraph = lazy(() => import('./graph/FunctionGraph'))
@@ -83,11 +85,12 @@ function CodeBlock({ node, children, ...rest }: PreProps) {
 }
 
 /**
- * pre 오버라이드 — ```graph 펜스는 인터랙티브 함수 그래프로,
- * 그 외에는 기존 CodeBlock으로 렌더한다.
+ * pre 오버라이드 — ```graph 펜스는 인터랙티브 함수 그래프로, ```book 펜스는
+ * 도서 배너로, 그 외에는 기존 CodeBlock으로 렌더한다.
  */
 function PreOrGraph(props: PreProps) {
-  if (fenceLang(props.children) === 'graph') {
+  const lang = fenceLang(props.children)
+  if (lang === 'graph') {
     const spec = extractText(props.node?.children).replace(/\n$/, '')
     return (
       <Suspense
@@ -96,6 +99,9 @@ function PreOrGraph(props: PreProps) {
         <FunctionGraph spec={spec} />
       </Suspense>
     )
+  }
+  if (lang === 'book') {
+    return <BookBanner spec={extractText(props.node?.children).replace(/\n$/, '')} />
   }
   return <CodeBlock {...props} />
 }
@@ -175,8 +181,8 @@ function MarkdownRenderer({ content, assetBase }: MarkdownRendererProps) {
         rehypePlugins={[
           rehypeRaw,
           rehypeKatex,
-          // graph 펜스는 스펙 텍스트이므로 하이라이팅 대상에서 제외
-          [rehypeHighlight, { plainText: ['graph'] }],
+          // graph·book 펜스는 스펙 텍스트이므로 하이라이팅 대상에서 제외
+          [rehypeHighlight, { plainText: ['graph', 'book'] }],
           rehypeSlug,
         ]}
         components={components}

@@ -85,6 +85,30 @@ function extractSearchText(content) {
   return lines.join('\n')
 }
 
+/**
+ * 본문 최상단 ```book 펜스 — 에디터 전용 도서 메타(booktitle, bookcategory).
+ * 빌드 시 여기서 추출해 index.json의 book 필드로 싣고(진열장이 본문 fetch 없이
+ * 진열), 공개 md 산출물에서는 펜스를 제거한다(독자에게 노출하지 않음).
+ * 문법은 src/lib/book.ts(parseBookFence)와 동기 유지할 것.
+ */
+const BOOK_FENCE_RE = /^```book[ \t]*\r?\n([\s\S]*?)\r?\n```[ \t]*(?:\r?\n)*/
+
+function extractBookMeta(content) {
+  const fence = BOOK_FENCE_RE.exec(content)
+  if (!fence) return null
+  const info = { title: '', category: '' }
+  for (const line of fence[1].split('\n')) {
+    const m = /^(booktitle|bookcategory)\s*:\s*(.*?)\s*$/.exec(line.trim())
+    if (m) info[m[1] === 'booktitle' ? 'title' : 'category'] = m[2]
+  }
+  return info
+}
+
+/** 공개 산출물용: 최상단 book 펜스를 제거한다 (뒤따르는 빈 줄 포함) */
+function stripBookFence(content) {
+  return content.replace(BOOK_FENCE_RE, '')
+}
+
 export function listPostFiles() {
   if (!fs.existsSync(CONTENT_DIR)) return []
   return fs.readdirSync(CONTENT_DIR).filter((f) => f.endsWith('.md'))
@@ -109,7 +133,12 @@ export function buildPosts() {
       drafts += 1
       continue
     }
-    fs.writeFileSync(path.join(OUT_DIR, `${post.slug}.md`), post.content)
+    const book = extractBookMeta(post.content)
+    // book 펜스는 에디터 전용 — 독자가 받는 md에는 포함하지 않는다
+    fs.writeFileSync(
+      path.join(OUT_DIR, `${post.slug}.md`),
+      book ? stripBookFence(post.content) : post.content,
+    )
     posts.push({
       slug: post.slug,
       title: post.title,
@@ -118,6 +147,7 @@ export function buildPosts() {
       tags: post.tags,
       summary: post.summary,
       searchText: extractSearchText(post.content),
+      ...(book ? { book } : {}),
     })
   }
 

@@ -7,6 +7,8 @@ export interface PostMeta {
   summary: string
   /** 검색용: 본문의 모든 헤더와 `- ` 구분점 텍스트 (빌드 시 추출) */
   searchText: string
+  /** 본문 최상단 ```book 펜스에서 빌드 시 추출한 도서 메타 (BOOK 게시물 전용) */
+  book?: { title: string; category: string }
 }
 
 export interface PostIndex {
